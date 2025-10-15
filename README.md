@@ -1,1 +1,1 @@
-# ydays-solo-travelers
+# ydays-traveler
