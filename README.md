@@ -12,3 +12,5 @@
     npm install react-router-dom lucide-react axios
     npm install -D tailwindcss postcss autoprefixer
     npx tailwindcss init -p
+
+    npm install leaflet react-leaflet
