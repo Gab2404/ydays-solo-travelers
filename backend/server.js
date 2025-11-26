@@ -13,7 +13,7 @@ mongoose.connect(process.env.MONGO_URI)
 
 // Routes
 const authRoutes = require('./routes/auth');
-const gameRoutes = require('./routes/game');
+const gameRoutes = require('./routes/game_temp');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
