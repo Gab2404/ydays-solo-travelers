@@ -1,30 +1,14 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import GameSession from './pages/GameSession';
-import AdminPanel from './pages/AdminPanel';
-import { AuthContextProvider } from './context/AuthContext';
+import React from 'react'
+import './App.css'
 
 function App() {
   return (
-    <AuthContextProvider>
-      <Router>
-        <div className="min-h-screen bg-amber-50 text-slate-900 font-sans">
-          <Navbar />
-          <div className="container mx-auto">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/game/:id" element={<GameSession />} />
-              <Route path="/admin" element={<AdminPanel />} />
-            </Routes>
-          </div>
-        </div>
-      </Router>
-    </AuthContextProvider>
-  );
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <h1 className="text-4xl font-bold text-blue-600">
+        Bienvenue sur Ydays Solo Travelers ! 🌍
+      </h1>
+    </div>
+  )
 }
-export default App;
+
+export default App
