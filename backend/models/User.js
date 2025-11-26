@@ -1,13 +1,17 @@
 const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  avatar: { type: String, default: "" },
-  bio: { type: String },
-  currentLocation: { type: String },
-  interests: [String],
+  role: { type: String, enum: ['admin', 'joueur'], default: 'joueur' },
+  lastname: { type: String, required: true },
+  firstname: { type: String, required: true },
+  age: { type: Number },
+  nationality: { type: String },
+  sex: { type: String, enum: ['H', 'F', 'Autre'] },
+  phone: { type: String },
+  
+  completedQuests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Quest' }],
   createdAt: { type: Date, default: Date.now }
 });
 
