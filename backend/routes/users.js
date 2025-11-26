@@ -1,7 +1,6 @@
 const router = require('express').Router();
-const User = require('../models/Usera');
+const User = require('../models/User');
 
-// GET User Profile
 router.get('/:id', async (req, res) => {
   try {
     // Mock response pour éviter erreur DB

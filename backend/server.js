@@ -9,16 +9,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Connexion MongoDB (Décommenter et configurer .env pour activer)
-// mongoose.connect(process.env.MONGO_URI)
-//   .then(() => console.log('MongoDB Connected'))
-//   .catch(err => console.error('MongoDB connection error:', err));
+// --- CONNEXION MONGODB ---
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('✅ MongoDB Connecté !'))
+  .catch(err => console.error('❌ Erreur connexion MongoDB:', err));
 
 // Import des Routes
 const authRoutes = require('./routes/auth');
 const tripRoutes = require('./routes/trips');
 const activityRoutes = require('./routes/activities');
-const chatRoutes = require('./routes/chats_temp');
+const chatRoutes = require('./routes/chats');
 const userRoutes = require('./routes/users');
 
 // Utilisation des Routes

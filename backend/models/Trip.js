@@ -7,7 +7,6 @@ const TripSchema = new mongoose.Schema({
   endDate: { type: Date, required: true },
   description: { type: String },
   type: { type: String, default: 'Aventure' },
-  // C'est ici qu'on stocke qui a rejoint
   participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   createdAt: { type: Date, default: Date.now }
 });

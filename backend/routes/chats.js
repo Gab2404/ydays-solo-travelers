@@ -18,14 +18,12 @@ router.post('/group', async (req, res) => {
   const { tripId, tripName, participants } = req.body;
 
   try {
-    // 1. On regarde si le chat existe déjà pour ce voyage
     const existingChat = await Chat.findOne({ tripId: tripId });
     
     if (existingChat) {
       return res.status(200).json(existingChat);
     }
 
-    // 2. Sinon on le crée
     const newChat = new Chat({
       name: `Groupe: ${tripName}`,
       isGroup: true,

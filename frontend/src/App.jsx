@@ -28,7 +28,7 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/trips/:id" element={<TripDetail />} />
 
-              {/* Routes qui devraient être protégées (nécessitent connexion) */}
+              {/* Routes qui nécessitent connexion */}
               <Route path="/chat" element={<Chat />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/create-trip" element={<CreateTrip />} />

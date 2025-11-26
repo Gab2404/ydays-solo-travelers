@@ -6,8 +6,8 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   avatar: { type: String, default: "" },
   bio: { type: String },
-  currentLocation: { type: String }, // Ex: "Bali, Indonésie"
-  interests: [String], // Ex: ["Randonnée", "Musée"]
+  currentLocation: { type: String },
+  interests: [String],
   createdAt: { type: Date, default: Date.now }
 });
 

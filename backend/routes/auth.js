@@ -1,15 +1,44 @@
 const router = require('express').Router();
-// Ici tu mettras ta logique de login/register (bcrypt, jwt)
-// Pour l'instant on fait un mock pour que ça marche
+const User = require('../models/User');
 
-router.post('/login', (req, res) => {
-    // Simulation d'un user connecté
-    res.json({
-        id: "123",
-        username: "ThomasDev",
-        email: req.body.email,
-        token: "fake-jwt-token-xyz"
+router.post('/register', async (req, res) => {
+  try {
+    const existingUser = await User.findOne({ email: req.body.email });
+    if (existingUser) {
+      return res.status(400).json("Cet email est déjà utilisé !");
+    }
+
+    const newUser = new User({
+      username: req.body.username,
+      email: req.body.email,
+      password: req.body.password, 
     });
+
+    const user = await newUser.save();
+    
+    res.status(200).json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json(err);
+  }
+});
+
+router.post('/login', async (req, res) => {
+  try {
+    const user = await User.findOne({ email: req.body.email });
+    if (!user) {
+      return res.status(404).json("Utilisateur non trouvé !");
+    }
+
+    if (user.password !== req.body.password) {
+      return res.status(400).json("Mot de passe incorrect !");
+    }
+
+    const { password, ...others } = user._doc;
+    res.status(200).json(others);
+  } catch (err) {
+    res.status(500).json(err);
+  }
 });
 
 module.exports = router;
