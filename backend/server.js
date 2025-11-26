@@ -19,4 +19,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Serveur démarré sur ${PORT}`));
+
+// MODIFICATION ICI : '0.0.0.0' permet d'accepter les connexions du téléphone
+app.listen(PORT, '0.0.0.0', () => console.log(`Serveur démarré sur le port ${PORT} (Accessible réseau)`));

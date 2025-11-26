@@ -2,7 +2,7 @@ import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import api from '../utils/api';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Plus, Save, Search } from 'lucide-react';
+import { MapPin, Plus, Save, Search, Trash2, List } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 
 // Composant pour recentrer la carte quand on cherche une adresse
@@ -14,7 +14,7 @@ const RecenterMap = ({ lat, lng }) => {
   return null;
 };
 
-// Composant pour placer le marqueur au clic
+// Composant pour placer le marqueur au clic sur la carte
 const LocationMarker = ({ setPos, pos }) => {
   useMapEvents({
     click(e) { setPos(e.latlng); },
@@ -26,29 +26,51 @@ const AdminPanel = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   
+  // États pour la création de parcours
   const [pathData, setPathData] = useState({ title: '', city: '', difficulty: 'Moyen', description: '' });
   const [paths, setPaths] = useState([]); 
   const [selectedPathId, setSelectedPathId] = useState('');
+  const [currentPathDetails, setCurrentPathDetails] = useState(null); // Pour afficher la liste des quêtes
   
-  // Gestion Adresse et Quête
+  // États pour la gestion des quêtes et de la carte
   const [questLocation, setQuestLocation] = useState(null); // { lat, lng }
   const [addressSearch, setAddressSearch] = useState('');
   const [questData, setQuestData] = useState({ title: '', description: '', clue: '' });
 
+  // Charger la liste des parcours au démarrage
   useEffect(() => {
-    const fetchPaths = async () => {
-      try {
-        const res = await api.get('/game/paths');
-        setPaths(res.data);
-      } catch (err) { console.error(err); }
-    };
     fetchPaths();
   }, []);
 
+  // Charger les détails (quêtes) quand on sélectionne un parcours
+  useEffect(() => {
+    if (selectedPathId) {
+      fetchPathDetails(selectedPathId);
+    } else {
+      setCurrentPathDetails(null);
+    }
+  }, [selectedPathId]);
+
+  const fetchPaths = async () => {
+    try {
+      const res = await api.get('/game/paths');
+      setPaths(res.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchPathDetails = async (id) => {
+    try {
+      const res = await api.get(`/game/paths/${id}`);
+      setCurrentPathDetails(res.data);
+    } catch (err) { console.error(err); }
+  };
+
+  // Sécurité : Vérifier si l'utilisateur est admin
   if (user?.role !== 'admin') {
-    return <div className="p-10 text-red-500 text-center font-bold">⛔ Accès interdit.</div>;
+    return <div className="p-10 text-red-500 text-center font-bold">⛔ Accès interdit. Réservé aux Game Masters.</div>;
   }
 
+  // CRÉER UN PARCOURS
   const handleCreatePath = async (e) => {
     e.preventDefault();
     try {
@@ -60,30 +82,7 @@ const AdminPanel = () => {
     } catch (err) { alert("Erreur création parcours"); }
   };
 
-  // Fonction de recherche d'adresse (Geocoding)
-  const searchAddress = async (e) => {
-    e.preventDefault();
-    if (!addressSearch) return;
-
-    try {
-      // Appel à l'API Nominatim (Gratuit, OpenStreetMap)
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressSearch)}`);
-      const data = await response.json();
-
-      if (data && data.length > 0) {
-        const { lat, lon } = data[0];
-        const newPos = { lat: parseFloat(lat), lng: parseFloat(lon) };
-        setQuestLocation(newPos); // Met à jour le marqueur
-        // Le composant RecenterMap va détecter le changement et bouger la caméra
-      } else {
-        alert("Adresse introuvable ! Essayez d'être plus précis.");
-      }
-    } catch (error) {
-      console.error("Erreur géocodage:", error);
-      alert("Erreur lors de la recherche d'adresse.");
-    }
-  };
-
+  // AJOUTER UNE QUÊTE
   const handleAddQuest = async (e) => {
     e.preventDefault();
     if (!selectedPathId) return alert("Sélectionne un parcours d'abord !");
@@ -95,11 +94,60 @@ const AdminPanel = () => {
         pathId: selectedPathId,
         location: { lat: questLocation.lat, lng: questLocation.lng }
       });
+      
+      // Rafraîchir la liste des quêtes
+      fetchPathDetails(selectedPathId);
+      
       alert(`Quête "${questData.title}" ajoutée !`);
+      // Reset du formulaire quête mais on garde le parcours sélectionné
       setQuestData({ title: '', description: '', clue: '' });
       setQuestLocation(null);
       setAddressSearch('');
     } catch (err) { alert("Erreur ajout quête"); }
+  };
+
+  // SUPPRIMER UNE QUÊTE
+  const handleDeleteQuest = async (questId) => {
+    if (!window.confirm("Supprimer cette quête définitivement ?")) return;
+    try {
+      await api.delete(`/game/quests/${questId}`);
+      fetchPathDetails(selectedPathId); // Rafraîchir la liste
+    } catch (err) { alert("Erreur suppression quête"); }
+  };
+
+  // SUPPRIMER UN PARCOURS
+  const handleDeletePath = async () => {
+    if (!selectedPathId) return;
+    if (!window.confirm("ATTENTION : Cela supprimera le parcours ET toutes ses quêtes. Continuer ?")) return;
+    
+    try {
+      await api.delete(`/game/paths/${selectedPathId}`);
+      alert("Parcours supprimé.");
+      setSelectedPathId(''); // Désélectionner
+      fetchPaths(); // Rafraîchir la liste des parcours
+    } catch (err) { alert("Erreur suppression parcours"); }
+  };
+
+  // Recherche d'adresse via l'API Nominatim (OpenStreetMap)
+  const searchAddress = async (e) => {
+    e.preventDefault();
+    if (!addressSearch) return;
+
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressSearch)}`);
+      const data = await response.json();
+
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        // Met à jour le marqueur et centre la carte
+        setQuestLocation({ lat: parseFloat(lat), lng: parseFloat(lon) });
+      } else {
+        alert("Adresse introuvable ! Essayez d'être plus précis.");
+      }
+    } catch (error) {
+      console.error("Erreur géocodage:", error);
+      alert("Erreur lors de la recherche d'adresse.");
+    }
   };
 
   return (
@@ -125,60 +173,110 @@ const AdminPanel = () => {
           </form>
         </div>
 
-        {/* DROITE : AJOUT QUÊTES */}
+        {/* DROITE : GESTION DES QUÊTES */}
         <div className="bg-white p-6 rounded-xl shadow-md border-t-4 border-blue-500">
-          <h2 className="text-xl font-bold mb-4 flex items-center"><Plus className="mr-2"/> 2. Ajouter des Quêtes</h2>
+          <h2 className="text-xl font-bold mb-4 flex items-center"><Plus className="mr-2"/> 2. Gérer les Quêtes</h2>
           
-          <div className="mb-4">
-            <select className="w-full p-2 border-2 border-blue-100 rounded font-bold"
-              value={selectedPathId} onChange={(e) => setSelectedPathId(e.target.value)}>
-              <option value="">-- Choisir un parcours --</option>
-              {paths.map(p => <option key={p._id} value={p._id}>{p.title} ({p.city})</option>)}
-            </select>
-          </div>
-
-          <div className="space-y-3">
-            <input placeholder="Titre de l'épreuve" className="w-full p-2 border rounded" 
-              value={questData.title} onChange={e => setQuestData({...questData, title: e.target.value})} />
-            <textarea placeholder="Énigme / Instruction..." className="w-full p-2 border rounded" 
-              value={questData.description} onChange={e => setQuestData({...questData, description: e.target.value})} />
-            
-            {/* Recherche d'adresse */}
+          {/* SÉLECTEUR DE PARCOURS */}
+          <div className="mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
+            <label className="block text-sm font-bold text-gray-700 mb-2">Sélectionner un parcours à modifier :</label>
             <div className="flex gap-2">
-                <input 
-                    type="text" 
-                    placeholder="Chercher une adresse (ex: Tour Eiffel)" 
-                    className="flex-1 p-2 border rounded border-amber-300"
-                    value={addressSearch}
-                    onChange={(e) => setAddressSearch(e.target.value)}
-                />
-                <button onClick={searchAddress} className="bg-amber-500 text-white p-2 rounded hover:bg-amber-600">
-                    <Search size={20} />
-                </button>
-            </div>
-
-            {/* LA CARTE INTERACTIVE */}
-            <div className="h-64 w-full rounded-lg overflow-hidden border-2 border-slate-200 relative z-0">
-              <MapContainer center={[46.603354, 1.888334]} zoom={5} style={{ height: '100%', width: '100%' }}>
-                {/* TUILES FRANÇAISES ICI 👇 */}
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png"
-                  attribution='&copy; OpenStreetMap France | &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                />
-                
-                <LocationMarker pos={questLocation} setPos={setQuestLocation} />
-                {questLocation && <RecenterMap lat={questLocation.lat} lng={questLocation.lng} />}
-              </MapContainer>
+              <select className="flex-1 p-2 border-2 border-blue-200 rounded font-bold"
+                value={selectedPathId} onChange={(e) => setSelectedPathId(e.target.value)}>
+                <option value="">-- Choisir un parcours --</option>
+                {paths.map(p => <option key={p._id} value={p._id}>{p.title} ({p.city})</option>)}
+              </select>
               
-              {!questLocation && <div className="absolute bottom-2 right-2 bg-white/90 p-2 text-xs font-bold rounded shadow z-[400] text-center">Cherchez une adresse<br/>ou cliquez sur la carte</div>}
+              {/* Bouton supprimer parcours */}
+              {selectedPathId && (
+                <button 
+                  onClick={handleDeletePath}
+                  className="bg-red-100 text-red-600 p-2 rounded border border-red-200 hover:bg-red-200 transition"
+                  title="Supprimer ce parcours entier"
+                >
+                  <Trash2 size={20} />
+                </button>
+              )}
             </div>
-
-            <button disabled={!selectedPathId || !questLocation} onClick={handleAddQuest} className="w-full bg-blue-600 disabled:bg-gray-300 text-white px-6 py-2 rounded font-bold hover:bg-blue-700">
-              <Save className="inline w-4 h-4 mr-1"/> Sauvegarder l'étape
-            </button>
           </div>
-        </div>
 
+          {/* FORMULAIRE D'AJOUT (Visible seulement si un parcours est sélectionné) */}
+          {selectedPathId && (
+            <div className="space-y-3 border-b pb-6 mb-6">
+              <h3 className="font-bold text-blue-600 text-sm uppercase">Ajouter une nouvelle étape</h3>
+              <input placeholder="Titre de l'épreuve" className="w-full p-2 border rounded" 
+                value={questData.title} onChange={e => setQuestData({...questData, title: e.target.value})} />
+              <textarea placeholder="Énigme / Instruction..." className="w-full p-2 border rounded" 
+                value={questData.description} onChange={e => setQuestData({...questData, description: e.target.value})} />
+              
+              {/* Recherche d'adresse */}
+              <div className="flex gap-2">
+                  <input 
+                      type="text" 
+                      placeholder="Chercher une adresse (ex: Tour Eiffel)" 
+                      className="flex-1 p-2 border rounded border-amber-300"
+                      value={addressSearch}
+                      onChange={(e) => setAddressSearch(e.target.value)}
+                  />
+                  <button onClick={searchAddress} className="bg-amber-500 text-white p-2 rounded hover:bg-amber-600">
+                      <Search size={20} />
+                  </button>
+              </div>
+
+              {/* LA CARTE INTERACTIVE */}
+              <div className="h-56 w-full rounded-lg overflow-hidden border-2 border-slate-200 relative z-0">
+                <MapContainer center={[46.603354, 1.888334]} zoom={5} style={{ height: '100%', width: '100%' }}>
+                  {/* Tuiles en Français */}
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png"
+                    attribution='&copy; OpenStreetMap France | &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  />
+                  
+                  <LocationMarker pos={questLocation} setPos={setQuestLocation} />
+                  {questLocation && <RecenterMap lat={questLocation.lat} lng={questLocation.lng} />}
+                </MapContainer>
+                
+                {!questLocation && <div className="absolute bottom-2 right-2 bg-white/90 p-2 text-xs font-bold rounded shadow z-[400] text-center">Cherchez une adresse<br/>ou cliquez sur la carte</div>}
+              </div>
+
+              <button disabled={!questLocation} onClick={handleAddQuest} className="w-full bg-blue-600 disabled:bg-gray-300 text-white px-6 py-2 rounded font-bold hover:bg-blue-700 transition">
+                <Save className="inline w-4 h-4 mr-1"/> Sauvegarder l'étape
+              </button>
+            </div>
+          )}
+
+          {/* LISTE DES QUÊTES EXISTANTES */}
+          {selectedPathId && currentPathDetails && (
+            <div>
+              <h3 className="font-bold text-slate-700 text-sm uppercase mb-3 flex items-center">
+                <List className="w-4 h-4 mr-2"/> Étapes existantes ({currentPathDetails.quests.length})
+              </h3>
+              
+              {currentPathDetails.quests.length === 0 ? (
+                <p className="text-sm text-gray-400 italic">Aucune quête pour l'instant.</p>
+              ) : (
+                <ul className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                  {currentPathDetails.quests.map((quest, index) => (
+                    <li key={quest._id} className="flex justify-between items-center bg-slate-50 p-3 rounded border border-slate-200 hover:bg-blue-50 transition group">
+                      <div>
+                        <span className="font-bold text-slate-800 text-sm">{index + 1}. {quest.title}</span>
+                        <p className="text-xs text-gray-500 truncate max-w-[200px]">{quest.description}</p>
+                      </div>
+                      <button 
+                        onClick={() => handleDeleteQuest(quest._id)}
+                        className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-white transition"
+                        title="Supprimer l'étape"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   );
