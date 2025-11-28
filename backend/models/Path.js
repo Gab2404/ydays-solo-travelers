@@ -3,9 +3,10 @@ const mongoose = require('mongoose');
 const PathSchema = new mongoose.Schema({
   title: { type: String, required: true },
   city: { type: String, required: true },
-  difficulty: { type: String, enum: ['Facile', 'Moyen', 'Difficile'], default: 'Moyen' },
+  difficulty: { type: String, default: 'Mixte' },
+  
   description: { type: String },
-  quests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Quest' }],
+  quests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Quest' }], // Liste des étapes
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 });
 

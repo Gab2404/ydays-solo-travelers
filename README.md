@@ -24,3 +24,5 @@
     npx expo install react-native-maps
 
     npm install lucide-react-native react-native-svg
+
+    npx expo install react-native-svg
