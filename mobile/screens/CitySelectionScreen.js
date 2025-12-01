@@ -63,18 +63,16 @@ export default function CitySelectionScreen({ navigation, user, setUser }) {
         <Text style={styles.subTitle}>Choisissez votre ville pour commencer</Text>
       </View>
 
-      {/* BARRE DE RECHERCHE */}
+      {/* --- NOUVELLE BARRE DE RECHERCHE STYLE "CLEAN" --- */}
       <View style={styles.searchBar}>
+        <Search size={20} color="#94a3b8" style={{ marginLeft: 15 }} />
         <TextInput 
           style={styles.searchInput}
-          placeholder="Ou est tu ?..."
-          placeholderTextColor="#1e293b"
+          placeholder="Rechercher une ville..."
+          placeholderTextColor="#94a3b8"
           value={searchText}
           onChangeText={setSearchText}
         />
-        <View style={styles.searchIconBox}>
-          <Search size={24} color="#1e293b" />
-        </View>
       </View>
 
       {/* CONTENU PRINCIPAL */}
@@ -156,13 +154,31 @@ const styles = StyleSheet.create({
   mainTitle: { fontSize: 28, fontWeight: 'bold', color: '#1e293b' },
   subTitle: { fontSize: 14, color: '#64748b' },
 
+  // --- NOUVEAUX STYLES BARRE DE RECHERCHE ---
   searchBar: { 
-    marginHorizontal: 20, flexDirection: 'row', alignItems: 'center', 
-    borderWidth: 2, borderColor: '#1e293b', borderRadius: 15, 
-    marginBottom: 20, height: 55, backgroundColor: '#fff', overflow: 'hidden'
+    marginHorizontal: 20, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: '#fff',
+    borderWidth: 1, 
+    borderColor: '#e2e8f0', // Bordure gris très clair
+    borderRadius: 25, // Plus arrondi
+    marginBottom: 20, 
+    height: 50, 
+    // Ombre douce pour l'effet "flottant" propre
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
   },
-  searchInput: { flex: 1, fontSize: 18, fontWeight: '600', color: '#1e293b', paddingLeft: 15, height: '100%' },
-  searchIconBox: { width: 50, height: '100%', borderLeftWidth: 2, borderColor: '#1e293b', justifyContent: 'center', alignItems: 'center' },
+  searchInput: { 
+    flex: 1, 
+    fontSize: 16, 
+    color: '#334155', 
+    paddingLeft: 10, 
+    height: '100%' 
+  },
 
   gridContainer: { paddingHorizontal: 20 },
   topRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
