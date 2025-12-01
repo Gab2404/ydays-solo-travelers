@@ -8,6 +8,7 @@ const api = axios.create({
   baseURL: API_URL,
 });
 
+// Intercepteur pour ajouter le token automatiquement
 api.interceptors.request.use(async (config) => {
   try {
     const storedUser = await AsyncStorage.getItem('user');
@@ -22,5 +23,38 @@ api.interceptors.request.use(async (config) => {
   }
   return config;
 });
+
+// === AUTH ===
+export const authAPI = {
+  login: (credentials) => api.post('/auth/login', credentials),
+  register: (userData) => api.post('/auth/register', userData),
+  getMe: () => api.get('/auth/me'),
+};
+
+// === PARCOURS ===
+export const pathAPI = {
+  getAll: (city) => api.get('/paths', { params: { city } }),
+  getById: (id) => api.get(`/paths/${id}`),
+  getByCity: (city) => api.get(`/paths/city/${city}`),
+  create: (data) => api.post('/paths', data),
+  update: (id, data) => api.put(`/paths/${id}`, data),
+  delete: (id) => api.delete(`/paths/${id}`),
+};
+
+// === QUÊTES ===
+export const questAPI = {
+  getByPath: (pathId) => api.get(`/quests/path/${pathId}`),
+  create: (data) => api.post('/quests', data),
+  update: (id, data) => api.put(`/quests/${id}`, data),
+  delete: (id) => api.delete(`/quests/${id}`),
+};
+
+// === UTILISATEUR ===
+export const userAPI = {
+  getProfile: () => api.get('/users/profile'),
+  updateProfile: (data) => api.put('/users/profile', data),
+  completeQuest: (questId) => api.post(`/users/complete-quest/${questId}`),
+  getHistory: () => api.get('/users/history'),
+};
 
 export default api;
