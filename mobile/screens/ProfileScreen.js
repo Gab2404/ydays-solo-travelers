@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LogOut, MapPin, Award, User } from 'lucide-react-native';
+import { LogOut, MapPin, Award } from 'lucide-react-native';
+import BottomNav from '../components/BottomNav';
 
 export default function ProfileScreen({ navigation, user, setUser }) {
   
@@ -49,7 +50,7 @@ export default function ProfileScreen({ navigation, user, setUser }) {
         <View style={{width: 40}} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{paddingBottom: 100}}>
         
         {/* BLOC PROFIL */}
         <View style={styles.profileCard}>
@@ -94,52 +95,207 @@ export default function ProfileScreen({ navigation, user, setUser }) {
           <LogOut size={20} color="#ef4444" />
           <Text style={styles.logoutText}>Se déconnecter</Text>
         </TouchableOpacity>
-
-        <View style={{height: 50}} />
       </ScrollView>
+
+      {/* ✅ BOTTOM NAV */}
+      <BottomNav navigation={navigation} activeRoute="Profile" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc', paddingTop: 50, paddingHorizontal: 20 },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f8fafc', 
+    paddingTop: 50, 
+    paddingHorizontal: 20 
+  },
   
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  backBtn: { padding: 10, backgroundColor: '#fff', borderRadius: 12, elevation: 2 },
-  backText: { fontSize: 18, fontWeight: 'bold', color: '#1e293b' },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#1e293b' },
+  // Header
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 20 
+  },
+  backBtn: { 
+    padding: 10, 
+    backgroundColor: '#fff', 
+    borderRadius: 12, 
+    elevation: 2 
+  },
+  backText: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: '#1e293b' 
+  },
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    color: '#1e293b' 
+  },
 
   // Carte Profil
-  profileCard: { alignItems: 'center', backgroundColor: '#fff', borderRadius: 20, padding: 25, marginBottom: 20, elevation: 3, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
-  avatarContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#1e293b', justifyContent: 'center', alignItems: 'center', marginBottom: 15, borderWidth: 4, borderColor: '#f1f5f9' },
-  avatarText: { color: '#fff', fontSize: 28, fontWeight: '900' },
-  userName: { fontSize: 22, fontWeight: 'bold', color: '#1e293b' },
-  userEmail: { fontSize: 14, color: '#64748b', marginBottom: 15 },
-  roleBadge: { backgroundColor: '#f1f5f9', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  userRole: { fontSize: 12, fontWeight: 'bold', color: '#475569', textTransform: 'uppercase' },
+  profileCard: { 
+    alignItems: 'center', 
+    backgroundColor: '#fff', 
+    borderRadius: 20, 
+    padding: 25, 
+    marginBottom: 20, 
+    elevation: 3, 
+    shadowColor: '#000', 
+    shadowOpacity: 0.05, 
+    shadowRadius: 10 
+  },
+  avatarContainer: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 40, 
+    backgroundColor: '#1e293b', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginBottom: 15, 
+    borderWidth: 4, 
+    borderColor: '#f1f5f9' 
+  },
+  avatarText: { 
+    color: '#fff', 
+    fontSize: 28, 
+    fontWeight: '900' 
+  },
+  userName: { 
+    fontSize: 22, 
+    fontWeight: 'bold', 
+    color: '#1e293b' 
+  },
+  userEmail: { 
+    fontSize: 14, 
+    color: '#64748b', 
+    marginBottom: 15 
+  },
+  roleBadge: { 
+    backgroundColor: '#f1f5f9', 
+    paddingHorizontal: 12, 
+    paddingVertical: 6, 
+    borderRadius: 20 
+  },
+  userRole: { 
+    fontSize: 12, 
+    fontWeight: 'bold', 
+    color: '#475569', 
+    textTransform: 'uppercase' 
+  },
 
   // Stats
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#fff', padding: 20, borderRadius: 15, marginBottom: 30, elevation: 2 },
-  statItem: { alignItems: 'center', flex: 1 },
-  statValue: { fontSize: 20, fontWeight: '900', color: '#d97706' },
-  statLabel: { fontSize: 12, color: '#64748b', fontWeight: '600', marginTop: 2 },
-  statSeparator: { width: 1, backgroundColor: '#e2e8f0', height: '80%', alignSelf: 'center' },
+  statsRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    backgroundColor: '#fff', 
+    padding: 20, 
+    borderRadius: 15, 
+    marginBottom: 30, 
+    elevation: 2 
+  },
+  statItem: { 
+    alignItems: 'center', 
+    flex: 1 
+  },
+  statValue: { 
+    fontSize: 20, 
+    fontWeight: '900', 
+    color: '#d97706' 
+  },
+  statLabel: { 
+    fontSize: 12, 
+    color: '#64748b', 
+    fontWeight: '600', 
+    marginTop: 2 
+  },
+  statSeparator: { 
+    width: 1, 
+    backgroundColor: '#e2e8f0', 
+    height: '80%', 
+    alignSelf: 'center' 
+  },
 
   // Historique
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#1e293b', marginBottom: 15 },
-  historyCard: { flexDirection: 'row', backgroundColor: '#fff', padding: 15, borderRadius: 15, marginBottom: 10, alignItems: 'center', elevation: 1 },
-  historyIconBg: { width: 40, height: 40, backgroundColor: '#fff7ed', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
-  historyContent: { flex: 1 },
-  historyTitle: { fontSize: 16, fontWeight: 'bold', color: '#1e293b' },
-  historyDate: { fontSize: 12, color: '#94a3b8' },
-  historyRight: { alignItems: 'flex-end' },
-  xpBadge: { backgroundColor: '#fef3c7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginBottom: 5 },
-  xpText: { color: '#d97706', fontWeight: 'bold', fontSize: 10 },
-  statusText: { fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase' },
-  statusCompleted: { color: '#16a34a' },
-  statusOngoing: { color: '#0ea5e9' },
+  sectionTitle: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: '#1e293b', 
+    marginBottom: 15 
+  },
+  historyCard: { 
+    flexDirection: 'row', 
+    backgroundColor: '#fff', 
+    padding: 15, 
+    borderRadius: 15, 
+    marginBottom: 10, 
+    alignItems: 'center', 
+    elevation: 1 
+  },
+  historyIconBg: { 
+    width: 40, 
+    height: 40, 
+    backgroundColor: '#fff7ed', 
+    borderRadius: 12, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginRight: 15 
+  },
+  historyContent: { 
+    flex: 1 
+  },
+  historyTitle: { 
+    fontSize: 16, 
+    fontWeight: 'bold', 
+    color: '#1e293b' 
+  },
+  historyDate: { 
+    fontSize: 12, 
+    color: '#94a3b8' 
+  },
+  historyRight: { 
+    alignItems: 'flex-end' 
+  },
+  xpBadge: { 
+    backgroundColor: '#fef3c7', 
+    paddingHorizontal: 8, 
+    paddingVertical: 2, 
+    borderRadius: 6, 
+    marginBottom: 5 
+  },
+  xpText: { 
+    color: '#d97706', 
+    fontWeight: 'bold', 
+    fontSize: 10 
+  },
+  statusText: { 
+    fontSize: 10, 
+    fontWeight: 'bold', 
+    textTransform: 'uppercase' 
+  },
+  statusCompleted: { 
+    color: '#16a34a' 
+  },
+  statusOngoing: { 
+    color: '#0ea5e9' 
+  },
 
   // Logout
-  logoutBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', backgroundColor: '#fee2e2', paddingVertical: 15, borderRadius: 15, marginTop: 20 },
-  logoutText: { color: '#ef4444', fontWeight: 'bold', marginLeft: 10, fontSize: 16 },
+  logoutBtn: { 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: '#fee2e2', 
+    paddingVertical: 15, 
+    borderRadius: 15, 
+    marginTop: 20 
+  },
+  logoutText: { 
+    color: '#ef4444', 
+    fontWeight: 'bold', 
+    marginLeft: 10, 
+    fontSize: 16 
+  },
 });

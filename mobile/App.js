@@ -9,9 +9,10 @@ import RegisterScreen from './screens/RegisterScreen';
 import CitySelectionScreen from './screens/CitySelectionScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import PathDetailScreen from './screens/PathDetailScreen';
-import GameSessionScreen from './screens/GameSessionScreen';
+import RoadmapScreen from './screens/RoadmapScreen';
+import MapScreen from './screens/MapScreen';
 import AdminPanelScreen from './screens/AdminPanelScreen';
-import ProfileScreen from './screens/ProfileScreen'; // <-- Import du profil
+import ProfileScreen from './screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -46,21 +47,24 @@ export default function App() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <Stack.Group>
-            {/* 1. Choix Ville */}
+            {/* Choix Ville */}
             <Stack.Screen name="CitySelection">
               {props => <CitySelectionScreen {...props} user={user} setUser={setUser} />}
             </Stack.Screen>
             
-            {/* 2. Liste Parcours */}
+            {/* Liste Parcours */}
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
             
-            {/* 3. Détails Parcours */}
+            {/* Détails Parcours */}
             <Stack.Screen name="PathDetail" component={PathDetailScreen} />
             
-            {/* 4. Jeu (Map) */}
-            <Stack.Screen name="GameSession" component={GameSessionScreen} />
+            {/* Roadmap (anciennement GameSession) */}
+            <Stack.Screen name="Roadmap" component={RoadmapScreen} />
             
-            {/* 5. Profil (NOUVELLE ROUTE) */}
+            {/* Map (nouvelle page) */}
+            <Stack.Screen name="Map" component={MapScreen} />
+            
+            {/* Profil */}
             <Stack.Screen name="Profile">
               {props => <ProfileScreen {...props} user={user} setUser={setUser} />}
             </Stack.Screen>
