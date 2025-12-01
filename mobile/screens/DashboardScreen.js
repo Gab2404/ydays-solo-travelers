@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import api from '../utils/api';
 
 export default function DashboardScreen({ route, navigation }) {
@@ -10,8 +10,6 @@ export default function DashboardScreen({ route, navigation }) {
     const fetchPaths = async () => {
       try {
         const res = await api.get('/game/paths');
-        
-        // FILTRAGE ROBUSTE : On nettoie les deux chaînes (minuscules + sans espaces inutiles)
         const targetCity = city.trim().toLowerCase();
         
         const cityPaths = res.data.filter(p => 
@@ -24,24 +22,35 @@ export default function DashboardScreen({ route, navigation }) {
     fetchPaths();
   }, [city]);
 
-  // Fonction pour avoir la couleur selon la catégorie
-  const getCategoryStyle = (category) => {
-    // On gère les cas même si c'est écrit en minuscule ou majuscule
+  // --- GESTION DES IMAGES PAR CATÉGORIE ---
+  // Assure-toi que ces fichiers existent bien dans ton dossier assets !
+  const categoryImages = {
+    'Culturel': require('../assets/images/culturel.png'),
+    'Sportif': require('../assets/images/sportif.png'),
+    'Culinaire': require('../assets/images/culinaire.png'),
+    'Détente': require('../assets/images/detente.png'),
+    'Mixte': require('../assets/images/mixte.png'),
+    // Fallback pour éviter les crashs si une catégorie est inconnue
+    'default': require('../assets/images/mixte.png'), 
+  };
+
+  // --- GESTION DES COULEURS DES BADGES ---
+  const getCategoryColor = (category) => {
     const cat = category ? category.trim() : '';
-    
     switch(cat) {
-      case 'Culturel': return { bg: '#fef9c3', text: '#b45309' }; // Jaune
+      case 'Culturel': return { bg: '#ede9fe', text: '#7c3aed' }; // Violet
       case 'Sportif': return { bg: '#fee2e2', text: '#ef4444' }; // Rouge
-      case 'Culinaire': return { bg: '#ede9fe', text: '#7c3aed' }; // Violet
+      case 'Culinaire': return { bg: '#ffedd5', text: '#c2410c' }; // Orange
       case 'Détente': return { bg: '#d1fae5', text: '#059669' }; // Vert
       case 'Mixte': return { bg: '#e0f2fe', text: '#0284c7' }; // Bleu
-      default: return { bg: '#f1f5f9', text: '#64748b' }; // Gris (par défaut)
+      default: return { bg: '#f1f5f9', text: '#64748b' }; // Gris
     }
   };
 
   const renderItem = ({ item }) => {
-    // On récupère le style correspondant à la catégorie (qui est stockée dans le champ 'difficulty')
-    const catStyle = getCategoryStyle(item.difficulty);
+    const catStyle = getCategoryColor(item.difficulty);
+    // Sélection de l'image : si la catégorie n'existe pas dans la liste, on prend 'default'
+    const imageSource = categoryImages[item.difficulty] || categoryImages['default'];
 
     return (
       <TouchableOpacity 
@@ -49,25 +58,35 @@ export default function DashboardScreen({ route, navigation }) {
         style={styles.card}
         onPress={() => navigation.navigate('PathDetail', { id: item._id })}
       >
-        <View style={styles.cardLeft}>
-          <View style={styles.iconContainer}>
-            <Text style={styles.cardIcon}>🗺️</Text>
-          </View>
+        {/* IMAGE DE LA CATÉGORIE (Gauche) */}
+        <View style={styles.cardImageContainer}>
+          <Image 
+            source={imageSource} 
+            style={styles.cardImage} 
+            resizeMode="cover" 
+          />
         </View>
         
-        <View style={styles.cardRight}>
-          <View style={styles.badges}>
-            {/* Badge Catégorie Coloré */}
+        {/* CONTENU (Droite) */}
+        <View style={styles.cardContent}>
+          
+          {/* En-tête : Badge + Nombre étapes */}
+          <View style={styles.cardHeader}>
             <View style={[styles.catBadge, { backgroundColor: catStyle.bg }]}>
               <Text style={[styles.catText, { color: catStyle.text }]}>{item.difficulty}</Text>
             </View>
-            <Text style={styles.questCount}>• {item.quests.length} étapes</Text>
+            <Text style={styles.stepsText}>{item.quests.length} étapes</Text>
           </View>
-          <Text style={styles.cardTitle}>{item.title}</Text>
-          <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
+
+          {/* Titre & Description */}
+          <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.cardDesc} numberOfLines={2}>
+            {item.description || "Découvrez ce parcours unique à travers la ville..."}
+          </Text>
           
-          <View style={styles.playBtn}>
-            <Text style={styles.playBtnText}>VOIR LES DÉTAILS ▶</Text>
+          {/* Bouton discret "Voir" */}
+          <View style={styles.seeMoreContainer}>
+            <Text style={styles.seeMoreText}>VOIR LE PARCOURS →</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -76,6 +95,7 @@ export default function DashboardScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
+      {/* Header simple */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Text style={styles.backText}>← Changer de ville</Text>
@@ -83,19 +103,18 @@ export default function DashboardScreen({ route, navigation }) {
         <Text style={styles.cityTitle}>{city}</Text>
       </View>
 
-      <Text style={styles.sectionTitle}>Parcours disponibles</Text>
+      <Text style={styles.sectionTitle}>Aventures disponibles</Text>
 
       <FlatList
         data={paths}
         keyExtractor={item => item._id}
         renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyEmoji}>📭</Text>
-            <Text style={styles.emptyText}>Aucun parcours trouvé à {city}.</Text>
-            <Text style={styles.emptySubText}>Soyez le premier à en créer un !</Text>
+            <Text style={styles.emptyText}>Aucun parcours trouvé ici.</Text>
           </View>
         }
       />
@@ -105,33 +124,53 @@ export default function DashboardScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc', paddingHorizontal: 20, paddingTop: 60 },
-  header: { marginBottom: 20 },
-  backBtn: { alignSelf: 'flex-start', paddingVertical: 5 },
-  backText: { color: '#64748b', fontSize: 14, fontWeight: 'bold' },
-  cityTitle: { fontSize: 32, fontWeight: '900', color: '#d97706', textTransform: 'uppercase', marginTop: 5 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: '#334155' },
   
-  card: { backgroundColor: '#fff', borderRadius: 16, marginBottom: 15, flexDirection: 'row', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2, padding: 5 },
-  cardLeft: { width: 80, justifyContent: 'center', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#f1f5f9', borderStyle: 'dashed' },
-  iconContainer: { width: 50, height: 50, backgroundColor: '#fff7ed', borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
-  cardIcon: { fontSize: 24 },
-  cardRight: { flex: 1, padding: 12 },
-  
-  badges: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
-  
-  // STYLE DU BADGE CATÉGORIE
-  catBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginRight: 8 },
-  catText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  // HEADER
+  header: { marginBottom: 25 },
+  backBtn: { alignSelf: 'flex-start', paddingVertical: 5, paddingHorizontal: 10, backgroundColor: '#fff', borderRadius: 20, marginBottom: 10 },
+  backText: { color: '#64748b', fontSize: 12, fontWeight: 'bold' },
+  cityTitle: { fontSize: 34, fontWeight: '900', color: '#d97706', textTransform: 'uppercase', letterSpacing: -1 },
 
-  questCount: { color: '#94a3b8', fontSize: 11, fontWeight: '600' },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: '#334155' },
+
+  // CARTE (NOUVEAU DESIGN)
+  card: { 
+    backgroundColor: '#fff', 
+    borderRadius: 20, 
+    marginBottom: 20, 
+    flexDirection: 'row', 
+    height: 140, // Hauteur fixe pour uniformité
+    shadowColor: '#000', 
+    shadowOpacity: 0.08, 
+    shadowRadius: 15, 
+    shadowOffset: { width: 0, height: 4 }, 
+    elevation: 4,
+    overflow: 'hidden'
+  },
+
+  // Partie Image (Gauche)
+  cardImageContainer: { width: 110, height: '100%', backgroundColor: '#f1f5f9' },
+  cardImage: { width: '100%', height: '100%' },
+
+  // Partie Contenu (Droite)
+  cardContent: { flex: 1, padding: 12, justifyContent: 'space-between' },
+
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   
-  cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#1e293b', marginBottom: 4 },
-  cardDesc: { fontSize: 12, color: '#94a3b8', marginBottom: 12, lineHeight: 16 },
-  playBtn: { backgroundColor: '#1e293b', paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  playBtnText: { color: '#fff', fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
+  // Badge Catégorie
+  catBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  catText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
   
+  stepsText: { fontSize: 11, color: '#94a3b8', fontWeight: '600' },
+
+  cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#1e293b', marginTop: 5 },
+  cardDesc: { fontSize: 12, color: '#64748b', lineHeight: 16 },
+
+  seeMoreContainer: { alignSelf: 'flex-end' },
+  seeMoreText: { fontSize: 10, fontWeight: '900', color: '#d97706', letterSpacing: 0.5 },
+
+  // Empty State
   emptyContainer: { alignItems: 'center', marginTop: 50 },
-  emptyEmoji: { fontSize: 50, marginBottom: 10 },
-  emptyText: { fontSize: 16, fontWeight: 'bold', color: '#334155' },
-  emptySubText: { fontSize: 14, color: '#94a3b8', marginTop: 5 }
+  emptyEmoji: { fontSize: 40, marginBottom: 10 },
+  emptyText: { fontSize: 16, color: '#64748b', fontWeight: '500' }
 });

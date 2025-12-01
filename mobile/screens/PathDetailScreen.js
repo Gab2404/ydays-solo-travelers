@@ -10,16 +10,6 @@ const { width } = Dimensions.get('window');
 export default function PathDetailScreen({ route, navigation }) {
   const { id } = route.params;
   const [path, setPath] = useState(null);
-  const [isFavorite, setIsFavorite] = useState(false);
-
-  // Images des villes
-  const cityImages = {
-    bordeaux: require('../assets/images/bordeaux.jpg'),
-    paris: require('../assets/images/paris.jpg'),
-    marseille: require('../assets/images/marseille.jpg'),
-    lyon: require('../assets/images/lyon.jpg'),
-    toulouse: require('../assets/images/toulouse.jpg'),
-  };
 
   // Images des catégories
   const categoryImages = {
