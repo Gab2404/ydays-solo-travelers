@@ -1,17 +1,27 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useContext } from 'react';
+import { 
+  View, Text, StyleSheet, TouchableOpacity, 
+  ScrollView, FlatList 
+} from 'react-native';
 import { LogOut, MapPin, Award } from 'lucide-react-native';
+import { AuthContext } from '../context/AuthContext';
+import errorHandler from '../utils/errorHandler';
 import BottomNav from '../components/BottomNav';
 
-export default function ProfileScreen({ navigation, user, setUser }) {
+export default function ProfileScreen({ navigation }) {
+  const { user, logout } = useContext(AuthContext);
   
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('user');
-    setUser(null);
+    errorHandler.showConfirmation(
+      'Déconnexion',
+      'Êtes-vous sûr de vouloir vous déconnecter ?',
+      async () => {
+        await logout();
+      }
+    );
   };
 
-  // Données fictives pour l'exemple
+  // Données fictives pour l'exemple (à remplacer par userService.getUserHistory())
   const historyData = [
     { id: '1', title: 'Secrets de Bordeaux', date: '12 Oct.', xp: 450, status: 'Complété' },
     { id: '2', title: 'Paris Historique', date: '05 Nov.', xp: 300, status: 'En cours' },
@@ -31,7 +41,10 @@ export default function ProfileScreen({ navigation, user, setUser }) {
         <View style={styles.xpBadge}>
           <Text style={styles.xpText}>+{item.xp} XP</Text>
         </View>
-        <Text style={[styles.statusText, item.status === 'En cours' ? styles.statusOngoing : styles.statusCompleted]}>
+        <Text style={[
+          styles.statusText, 
+          item.status === 'En cours' ? styles.statusOngoing : styles.statusCompleted
+        ]}>
           {item.status}
         </Text>
       </View>
@@ -41,30 +54,37 @@ export default function ProfileScreen({ navigation, user, setUser }) {
   return (
     <View style={styles.container}>
       
-      {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()} 
+          style={styles.backBtn}
+        >
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mon Profil</Text>
         <View style={{width: 40}} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{paddingBottom: 100}}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{paddingBottom: 100}}
+      >
         
-        {/* BLOC PROFIL */}
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
-            <Text style={styles.avatarText}>{user.firstname[0]}{user.lastname[0]}</Text>
+            <Text style={styles.avatarText}>
+              {user.firstname[0]}{user.lastname[0]}
+            </Text>
           </View>
           <Text style={styles.userName}>{user.firstname} {user.lastname}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
           <View style={styles.roleBadge}>
-            <Text style={styles.userRole}>{user.role === 'admin' ? 'Game Master' : 'Explorateur'}</Text>
+            <Text style={styles.userRole}>
+              {user.role === 'admin' ? 'Game Master' : 'Explorateur'}
+            </Text>
           </View>
         </View>
 
-        {/* STATS */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>2</Text>
@@ -82,7 +102,6 @@ export default function ProfileScreen({ navigation, user, setUser }) {
           </View>
         </View>
         
-        {/* HISTORIQUE */}
         <Text style={styles.sectionTitle}>Dernières aventures</Text>
         <FlatList
           data={historyData}
@@ -97,7 +116,6 @@ export default function ProfileScreen({ navigation, user, setUser }) {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* ✅ BOTTOM NAV */}
       <BottomNav navigation={navigation} activeRoute="Profile" />
     </View>
   );
@@ -111,7 +129,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20 
   },
   
-  // Header
   header: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
@@ -135,7 +152,6 @@ const styles = StyleSheet.create({
     color: '#1e293b' 
   },
 
-  // Carte Profil
   profileCard: { 
     alignItems: 'center', 
     backgroundColor: '#fff', 
@@ -186,7 +202,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase' 
   },
 
-  // Stats
   statsRow: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
@@ -218,7 +233,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center' 
   },
 
-  // Historique
   sectionTitle: { 
     fontSize: 18, 
     fontWeight: 'bold', 
@@ -282,7 +296,6 @@ const styles = StyleSheet.create({
     color: '#0ea5e9' 
   },
 
-  // Logout
   logoutBtn: { 
     flexDirection: 'row', 
     justifyContent: 'center', 

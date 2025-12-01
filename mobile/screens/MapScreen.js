@@ -1,72 +1,66 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Dimensions, Animated, Platform, Linking, ScrollView } from 'react-native';
+import { 
+  View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, 
+  Dimensions, Animated, Platform, Linking, ScrollView 
+} from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { X, CheckCircle, Navigation, MapPin, ChevronRight, Clock } from 'lucide-react-native';
-import api from '../utils/api';
+import pathService from '../services/pathService';
+import errorHandler from '../utils/errorHandler';
 import BottomNav from '../components/BottomNav';
 
-const { width, height } = Dimensions.get('window');
-const PANEL_WIDTH = width * 0.75; 
-
-// On définit un zoom standard pour quand on clique sur un point (0.01 est un bon niveau de quartier)
-const ZOOM_DELTA = 0.01; 
+const { width } = Dimensions.get('window');
+const PANEL_WIDTH = width * 0.75;
+const ZOOM_DELTA = 0.01;
 
 export default function MapScreen({ route, navigation }) {
   const { id } = route.params;
   const [path, setPath] = useState(null);
   const [selectedQuestId, setSelectedQuestId] = useState(null);
   const [completedQuests, setCompletedQuests] = useState([]);
-  const [inProgressQuests, setInProgressQuests] = useState([]); 
-
+  const [inProgressQuests, setInProgressQuests] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
   const mapRef = useRef(null);
   const slideAnim = useRef(new Animated.Value(PANEL_WIDTH)).current;
 
   useEffect(() => {
-    const fetchPath = async () => {
-      try {
-        const res = await api.get(`/game/paths/${id}`);
-        setPath(res.data);
-      } catch (err) { console.error(err); }
-    };
     fetchPath();
   }, [id]);
 
-  // --- Gestion du Panneau et Animation Fluide ---
+  const fetchPath = async () => {
+    try {
+      setIsLoading(true);
+      const data = await pathService.getPathById(id);
+      setPath(data);
+    } catch (err) {
+      errorHandler.handle(err, 'Impossible de charger le parcours');
+      navigation.goBack();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleMarkerPress = (questId) => {
-    const prevId = selectedQuestId;
     setSelectedQuestId(questId);
     
-    // 1. Animation du panneau (Slide)
     Animated.timing(slideAnim, {
       toValue: 0,
       duration: 300,
       useNativeDriver: true,
     }).start();
 
-    // 2. Calcul du recentrage intelligent (Sans mapPadding)
     const quest = path.quests.find(q => q._id === questId);
     if (quest && mapRef.current) {
-      
-      // ASTUCE MATHÉMATIQUE :
-      // Le panneau prend 75% de l'écran à droite. On veut voir le point dans les 25% à gauche.
-      // Le centre visuel souhaité est donc à 12.5% de l'écran (milieu des 25%).
-      // Le centre réel de la map est à 50%.
-      // On doit donc décaler le centre de la map de (50% - 12.5%) = 37.5% vers la GAUCHE par rapport au point.
-      // En coordonnées GPS (Longitude), cela veut dire que le centre de la caméra doit être à l'EST (Droite) du point.
-      
-      // On calcule le décalage en degrés
-      const offsetFactor = 0.35; // 35% de la largeur en degrés (ajustable)
-      const targetLongitude = quest.location.lng - (ZOOM_DELTA * offsetFactor); // Correction: On soustrait car Longitude Est augmente vers la droite.
-      // Attends, si je veux que le point soit à GAUCHE, le centre de la map doit être à sa DROITE.
-      // Donc Center.lng > Point.lng. Donc il faut ADDITIONNER.
+      const offsetFactor = 0.35;
       const correctedLongitude = quest.location.lng + (ZOOM_DELTA * offsetFactor);
 
       mapRef.current.animateToRegion({
         latitude: quest.location.lat,
-        longitude: correctedLongitude, // On vise un point "fictif" à droite pour que notre vrai point soit à gauche
+        longitude: correctedLongitude,
         latitudeDelta: ZOOM_DELTA,
         longitudeDelta: ZOOM_DELTA,
-      }, 600); // 600ms pour une transition douce
+      }, 600);
     }
   };
 
@@ -78,13 +72,12 @@ export default function MapScreen({ route, navigation }) {
     }).start(() => {
       setSelectedQuestId(null);
     });
-    // Optionnel : Si tu veux dézoomer ou recentrer quand on ferme, tu peux le faire ici
   };
 
-  // --- Actions ---
   const handleStartQuest = (questId) => {
     if (!inProgressQuests.includes(questId)) {
       setInProgressQuests([...inProgressQuests, questId]);
+      errorHandler.showSuccess('Étape commencée !');
     }
   };
 
@@ -97,7 +90,15 @@ export default function MapScreen({ route, navigation }) {
     }));
   };
 
-  if (!path) return <ActivityIndicator style={{ flex: 1 }} size="large" color="#f97316" />;
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#f97316" />
+      </View>
+    );
+  }
+
+  if (!path) return null;
 
   const totalQuests = path.quests.length;
   const completedCount = completedQuests.length;
@@ -111,7 +112,6 @@ export default function MapScreen({ route, navigation }) {
   return (
     <View style={styles.container}>
       
-      {/* HEADER FLOTTANT */}
       <View style={styles.headerFloating}>
         <View style={styles.headerTextContainer}>
           <Text style={styles.headerCity}>{path.city}</Text>
@@ -122,7 +122,6 @@ export default function MapScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* MAP */}
       <MapView 
         ref={mapRef}
         style={styles.map} 
@@ -133,7 +132,6 @@ export default function MapScreen({ route, navigation }) {
           longitudeDelta: 0.05
         }}
         toolbarEnabled={false}
-        // J'ai supprimé mapPadding ici car c'est lui qui causait le "saut" bizarre
         onPress={() => { if(selectedQuestId) handleClosePanel() }}
       >
         {path.quests.map((quest, index) => {
@@ -168,7 +166,6 @@ export default function MapScreen({ route, navigation }) {
         })}
       </MapView>
 
-      {/* PANNEAU LATÉRAL */}
       {selectedQuest && (
         <Animated.View style={[styles.sidePanel, { transform: [{ translateX: slideAnim }], width: PANEL_WIDTH }]}>
           <ScrollView showsVerticalScrollIndicator={false}>
@@ -255,6 +252,13 @@ export default function MapScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
+  
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc'
+  },
 
   headerFloating: {
     position: 'absolute',
@@ -276,7 +280,6 @@ const styles = StyleSheet.create({
 
   map: { width: '100%', height: '100%' },
   
-  // Styles Markers
   pinContainer: { alignItems: 'center', width: 50, height: 60 },
   pinHead: {
     width: 44, height: 44, borderRadius: 22, backgroundColor: '#f97316',
@@ -302,7 +305,6 @@ const styles = StyleSheet.create({
   },
   defaultMarkerText: { fontSize: 12, fontWeight: 'bold', color: '#64748b' },
 
-  // Styles Panneau Latéral
   sidePanel: {
     position: 'absolute',
     right: 0, top: 0, bottom: 80, 

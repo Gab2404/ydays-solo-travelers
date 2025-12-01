@@ -1,18 +1,35 @@
-import React, { useContext, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ImageBackground, Image, FlatList } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useContext, useState, useEffect } from 'react';
+import { 
+  View, Text, TextInput, TouchableOpacity, StyleSheet, 
+  ScrollView, ImageBackground, Image, FlatList 
+} from 'react-native';
 import { Search } from 'lucide-react-native';
+import { AuthContext } from '../context/AuthContext';
+import storage from '../utils/storage';
 import BottomNav from '../components/BottomNav';
 
-export default function CitySelectionScreen({ navigation, user, setUser }) {
+export default function CitySelectionScreen({ navigation }) {
+  const { user, logout } = useContext(AuthContext);
   const [searchText, setSearchText] = useState('');
-  
-  const handleLogout = async () => {
-    await AsyncStorage.removeItem('user');
-    setUser(null);
+
+  useEffect(() => {
+    loadLastCity();
+  }, []);
+
+  const loadLastCity = async () => {
+    const lastCity = await storage.getLastCity();
+    if (lastCity) {
+      // Optionnel: Navigation automatique vers la dernière ville
+      // navigation.navigate('Dashboard', { city: lastCity });
+    }
   };
 
-  const goToDashboard = (cityName) => {
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  const goToDashboard = async (cityName) => {
+    await storage.saveLastCity(cityName);
     navigation.navigate('Dashboard', { city: cityName });
   };
 
@@ -52,7 +69,10 @@ export default function CitySelectionScreen({ navigation, user, setUser }) {
 
       {/* BOUTON ADMIN */}
       {user.role === 'admin' && (
-        <TouchableOpacity style={styles.adminBtn} onPress={() => navigation.navigate('AdminPanel')}>
+        <TouchableOpacity 
+          style={styles.adminBtn} 
+          onPress={() => navigation.navigate('AdminPanel')}
+        >
           <Text style={styles.adminText}>🛠️ Studio Création</Text>
         </TouchableOpacity>
       )}
@@ -63,7 +83,7 @@ export default function CitySelectionScreen({ navigation, user, setUser }) {
         <Text style={styles.subTitle}>Choisissez votre ville pour commencer</Text>
       </View>
 
-      {/* --- NOUVELLE BARRE DE RECHERCHE STYLE "CLEAN" --- */}
+      {/* BARRE DE RECHERCHE */}
       <View style={styles.searchBar}>
         <Search size={20} color="#94a3b8" style={{ marginLeft: 15 }} />
         <TextInput 
@@ -77,41 +97,95 @@ export default function CitySelectionScreen({ navigation, user, setUser }) {
 
       {/* CONTENU PRINCIPAL */}
       {searchText.length === 0 ? (
-        <ScrollView contentContainerStyle={styles.gridContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          contentContainerStyle={styles.gridContainer} 
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.topRow}>
             <View style={styles.leftCol}>
-              <TouchableOpacity style={styles.cardMedium} onPress={() => goToDashboard('Bordeaux')}>
-                <ImageBackground source={images.bordeaux} style={styles.cardBg} imageStyle={{borderRadius: 15}} resizeMode="cover">
-                  <View style={styles.overlay}><Text style={styles.cardTitle}>BORDEAUX</Text></View>
+              <TouchableOpacity 
+                style={styles.cardMedium} 
+                onPress={() => goToDashboard('Bordeaux')}
+              >
+                <ImageBackground 
+                  source={images.bordeaux} 
+                  style={styles.cardBg} 
+                  imageStyle={{borderRadius: 15}} 
+                  resizeMode="cover"
+                >
+                  <View style={styles.overlay}>
+                    <Text style={styles.cardTitle}>BORDEAUX</Text>
+                  </View>
                 </ImageBackground>
               </TouchableOpacity>
 
               <View style={styles.smallRow}>
-                <TouchableOpacity style={styles.cardSmall} onPress={() => goToDashboard('Marseille')}>
-                  <ImageBackground source={images.marseille} style={styles.cardBg} imageStyle={{borderRadius: 15}} resizeMode="cover">
-                    <View style={styles.overlay}><Text style={styles.cardTitleSmall}>MARSEILLE</Text></View>
+                <TouchableOpacity 
+                  style={styles.cardSmall} 
+                  onPress={() => goToDashboard('Marseille')}
+                >
+                  <ImageBackground 
+                    source={images.marseille} 
+                    style={styles.cardBg} 
+                    imageStyle={{borderRadius: 15}} 
+                    resizeMode="cover"
+                  >
+                    <View style={styles.overlay}>
+                      <Text style={styles.cardTitleSmall}>MARSEILLE</Text>
+                    </View>
                   </ImageBackground>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.cardSmall} onPress={() => goToDashboard('Lyon')}>
-                  <ImageBackground source={images.lyon} style={styles.cardBg} imageStyle={{borderRadius: 15}} resizeMode="cover">
-                    <View style={styles.overlay}><Text style={styles.cardTitleSmall}>LYON</Text></View>
+                
+                <TouchableOpacity 
+                  style={styles.cardSmall} 
+                  onPress={() => goToDashboard('Lyon')}
+                >
+                  <ImageBackground 
+                    source={images.lyon} 
+                    style={styles.cardBg} 
+                    imageStyle={{borderRadius: 15}} 
+                    resizeMode="cover"
+                  >
+                    <View style={styles.overlay}>
+                      <Text style={styles.cardTitleSmall}>LYON</Text>
+                    </View>
                   </ImageBackground>
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.rightCol}>
-              <TouchableOpacity style={styles.cardTall} onPress={() => goToDashboard('Paris')}>
-                <ImageBackground source={images.paris} style={styles.cardBg} imageStyle={{borderRadius: 15}} resizeMode="cover">
-                  <View style={styles.overlay}><Text style={styles.cardTitle}>PARIS</Text></View>
+              <TouchableOpacity 
+                style={styles.cardTall} 
+                onPress={() => goToDashboard('Paris')}
+              >
+                <ImageBackground 
+                  source={images.paris} 
+                  style={styles.cardBg} 
+                  imageStyle={{borderRadius: 15}} 
+                  resizeMode="cover"
+                >
+                  <View style={styles.overlay}>
+                    <Text style={styles.cardTitle}>PARIS</Text>
+                  </View>
                 </ImageBackground>
               </TouchableOpacity>
             </View>
           </View>
 
-          <TouchableOpacity style={styles.cardWide} onPress={() => goToDashboard('Toulouse')}>
-            <ImageBackground source={images.toulouse} style={styles.cardBg} imageStyle={{borderRadius: 15}} resizeMode="cover">
-              <View style={styles.overlay}><Text style={styles.cardTitle}>TOULOUSE</Text></View>
+          <TouchableOpacity 
+            style={styles.cardWide} 
+            onPress={() => goToDashboard('Toulouse')}
+          >
+            <ImageBackground 
+              source={images.toulouse} 
+              style={styles.cardBg} 
+              imageStyle={{borderRadius: 15}} 
+              resizeMode="cover"
+            >
+              <View style={styles.overlay}>
+                <Text style={styles.cardTitle}>TOULOUSE</Text>
+              </View>
             </ImageBackground>
           </TouchableOpacity>
 
@@ -123,16 +197,22 @@ export default function CitySelectionScreen({ navigation, user, setUser }) {
           keyExtractor={item => item.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.resultCard} onPress={() => goToDashboard(item.name)}>
+            <TouchableOpacity 
+              style={styles.resultCard} 
+              onPress={() => goToDashboard(item.name)}
+            >
               <Image source={item.img} style={styles.resultImage} />
               <Text style={styles.resultText}>{item.name}</Text>
             </TouchableOpacity>
           )}
-          ListEmptyComponent={<Text style={{textAlign: 'center', marginTop: 20, color: '#64748b'}}>Aucune ville trouvée.</Text>}
+          ListEmptyComponent={
+            <Text style={{textAlign: 'center', marginTop: 20, color: '#64748b'}}>
+              Aucune ville trouvée.
+            </Text>
+          }
         />
       )}
 
-      {/* BOTTOM NAV */}
       <BottomNav navigation={navigation} activeRoute="CitySelection" />
     </View>
   );
@@ -141,31 +221,48 @@ export default function CitySelectionScreen({ navigation, user, setUser }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', paddingTop: 50 },
   
-  header: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 15 },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: 20, 
+    marginBottom: 15 
+  },
   welcomeLabel: { fontSize: 14, color: '#64748b' },
   username: { fontSize: 24, fontWeight: '900', color: '#1e293b' },
-  closeBtn: { backgroundColor: '#fee2e2', width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  closeBtn: { 
+    backgroundColor: '#fee2e2', 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
   closeText: { color: '#ef4444', fontSize: 16, fontWeight: 'bold' },
 
-  adminBtn: { marginHorizontal: 20, backgroundColor: '#1e293b', padding: 12, borderRadius: 12, alignItems: 'center', marginBottom: 20 },
+  adminBtn: { 
+    marginHorizontal: 20, 
+    backgroundColor: '#1e293b', 
+    padding: 12, 
+    borderRadius: 12, 
+    alignItems: 'center', 
+    marginBottom: 20 
+  },
   adminText: { color: '#fff', fontWeight: 'bold' },
 
   titleContainer: { paddingHorizontal: 20, marginBottom: 20 },
   mainTitle: { fontSize: 28, fontWeight: 'bold', color: '#1e293b' },
   subTitle: { fontSize: 14, color: '#64748b' },
 
-  // --- NOUVEAUX STYLES BARRE DE RECHERCHE ---
   searchBar: { 
     marginHorizontal: 20, 
     flexDirection: 'row', 
     alignItems: 'center', 
     backgroundColor: '#fff',
     borderWidth: 1, 
-    borderColor: '#e2e8f0', // Bordure gris très clair
-    borderRadius: 25, // Plus arrondi
+    borderColor: '#e2e8f0',
+    borderRadius: 25,
     marginBottom: 20, 
-    height: 50, 
-    // Ombre douce pour l'effet "flottant" propre
+    height: 50,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -185,18 +282,77 @@ const styles = StyleSheet.create({
   leftCol: { flex: 2, gap: 10 },
   rightCol: { flex: 1 },
 
-  cardMedium: { height: 120, borderRadius: 20, overflow: 'hidden', backgroundColor: '#e2e8f0' }, 
-  cardTall: { height: 250, borderRadius: 20, overflow: 'hidden', backgroundColor: '#e2e8f0' },   
+  cardMedium: { 
+    height: 120, 
+    borderRadius: 20, 
+    overflow: 'hidden', 
+    backgroundColor: '#e2e8f0' 
+  }, 
+  cardTall: { 
+    height: 250, 
+    borderRadius: 20, 
+    overflow: 'hidden', 
+    backgroundColor: '#e2e8f0' 
+  },   
   smallRow: { flexDirection: 'row', gap: 10, height: 120 },
-  cardSmall: { flex: 1, borderRadius: 20, overflow: 'hidden', backgroundColor: '#e2e8f0' },      
-  cardWide: { height: 80, borderRadius: 20, overflow: 'hidden', marginBottom: 20, backgroundColor: '#e2e8f0' }, 
+  cardSmall: { 
+    flex: 1, 
+    borderRadius: 20, 
+    overflow: 'hidden', 
+    backgroundColor: '#e2e8f0' 
+  },      
+  cardWide: { 
+    height: 80, 
+    borderRadius: 20, 
+    overflow: 'hidden', 
+    marginBottom: 20, 
+    backgroundColor: '#e2e8f0' 
+  }, 
 
-  cardBg: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  overlay: { backgroundColor: 'rgba(0,0,0,0.2)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  cardTitle: { fontSize: 14, fontWeight: '900', color: '#fff', textTransform: 'uppercase', letterSpacing: 1 },
-  cardTitleSmall: { fontSize: 10, fontWeight: '900', color: '#fff', textTransform: 'uppercase' },
+  cardBg: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  overlay: { 
+    backgroundColor: 'rgba(0,0,0,0.2)', 
+    paddingHorizontal: 10, 
+    paddingVertical: 5, 
+    borderRadius: 8 
+  },
+  cardTitle: { 
+    fontSize: 14, 
+    fontWeight: '900', 
+    color: '#fff', 
+    textTransform: 'uppercase', 
+    letterSpacing: 1 
+  },
+  cardTitleSmall: { 
+    fontSize: 10, 
+    fontWeight: '900', 
+    color: '#fff', 
+    textTransform: 'uppercase' 
+  },
 
-  resultCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', padding: 10, borderRadius: 15, marginBottom: 10, borderWidth: 1, borderColor: '#e2e8f0' },
-  resultImage: { width: 50, height: 50, borderRadius: 10, marginRight: 15 },
-  resultText: { fontSize: 18, fontWeight: 'bold', color: '#1e293b' },
+  resultCard: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: '#f8fafc', 
+    padding: 10, 
+    borderRadius: 15, 
+    marginBottom: 10, 
+    borderWidth: 1, 
+    borderColor: '#e2e8f0' 
+  },
+  resultImage: { 
+    width: 50, 
+    height: 50, 
+    borderRadius: 10, 
+    marginRight: 15 
+  },
+  resultText: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: '#1e293b' 
+  },
 });

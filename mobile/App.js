@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { View, ActivityIndicator } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
+import { AuthContext, AuthContextProvider } from './context/AuthContext';
 
+// Screens
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import CitySelectionScreen from './screens/CitySelectionScreen';
@@ -11,28 +12,13 @@ import DashboardScreen from './screens/DashboardScreen';
 import PathDetailScreen from './screens/PathDetailScreen';
 import RoadmapScreen from './screens/RoadmapScreen';
 import MapScreen from './screens/MapScreen';
-import AdminPanelScreen from './screens/AdminPanelScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import AdminPanelScreen from './screens/AdminPanelScreen';
 
 const Stack = createNativeStackNavigator();
 
-export default function App() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const storedUser = await AsyncStorage.getItem('user');
-        if (storedUser) setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    checkUser();
-  }, []);
+function AppNavigator() {
+  const { user, isLoading } = useContext(AuthContext);
 
   if (isLoading) {
     return (
@@ -43,44 +29,35 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
-          <Stack.Group>
-            {/* Choix Ville */}
-            <Stack.Screen name="CitySelection">
-              {props => <CitySelectionScreen {...props} user={user} setUser={setUser} />}
-            </Stack.Screen>
-            
-            {/* Liste Parcours */}
-            <Stack.Screen name="Dashboard" component={DashboardScreen} />
-            
-            {/* Détails Parcours */}
-            <Stack.Screen name="PathDetail" component={PathDetailScreen} />
-            
-            {/* Roadmap (anciennement GameSession) */}
-            <Stack.Screen name="Roadmap" component={RoadmapScreen} />
-            
-            {/* Map (nouvelle page) */}
-            <Stack.Screen name="Map" component={MapScreen} />
-            
-            {/* Profil */}
-            <Stack.Screen name="Profile">
-              {props => <ProfileScreen {...props} user={user} setUser={setUser} />}
-            </Stack.Screen>
-            
-            {/* Admin */}
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {!user ? (
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+        </>
+      ) : (
+        <>
+          <Stack.Screen name="CitySelection" component={CitySelectionScreen} />
+          <Stack.Screen name="Dashboard" component={DashboardScreen} />
+          <Stack.Screen name="PathDetail" component={PathDetailScreen} />
+          <Stack.Screen name="Roadmap" component={RoadmapScreen} />
+          <Stack.Screen name="Map" component={MapScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
+          {user.role === 'admin' && (
             <Stack.Screen name="AdminPanel" component={AdminPanelScreen} />
-          </Stack.Group>
-        ) : (
-          <Stack.Group>
-            <Stack.Screen name="Login">
-              {props => <LoginScreen {...props} setUser={setUser} />}
-            </Stack.Screen>
-            <Stack.Screen name="Register" component={RegisterScreen} />
-          </Stack.Group>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+          )}
+        </>
+      )}
+    </Stack.Navigator>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthContextProvider>
+      <NavigationContainer>
+        <AppNavigator />
+      </NavigationContainer>
+    </AuthContextProvider>
   );
 }

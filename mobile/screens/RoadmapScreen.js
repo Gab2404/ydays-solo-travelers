@@ -1,33 +1,54 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView, Dimensions, Alert, Animated } from 'react-native';
+import { 
+  View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, 
+  ScrollView, Dimensions, Animated 
+} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { CheckCircle, MapPin, ChevronRight, X } from 'lucide-react-native';
-import api from '../utils/api';
+import { CheckCircle, MapPin, ChevronRight, X, Clock } from 'lucide-react-native';
+import pathService from '../services/pathService';
+import errorHandler from '../utils/errorHandler';
 import BottomNav from '../components/BottomNav';
 
 const { width } = Dimensions.get('window');
+const PANEL_WIDTH = width * 0.75;
 
 export default function RoadmapScreen({ route, navigation }) {
   const { id } = route.params;
   const [path, setPath] = useState(null);
   const [selectedQuestId, setSelectedQuestId] = useState(null);
   const [completedQuests, setCompletedQuests] = useState([]);
-  const [inProgressQuests, setInProgressQuests] = useState([]); // Nouvelles quêtes en cours
+  const [inProgressQuests, setInProgressQuests] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   const scrollViewRef = useRef(null);
-  const slideAnim = useRef(new Animated.Value(width * 0.75)).current;
+  const slideAnim = useRef(new Animated.Value(PANEL_WIDTH)).current;
 
   useEffect(() => {
-    const fetchPath = async () => {
-      try {
-        const res = await api.get(`/game/paths/${id}`);
-        setPath(res.data);
-      } catch (err) { console.error(err); }
-    };
     fetchPath();
   }, [id]);
 
-  if (!path) return <ActivityIndicator style={{ flex: 1 }} size="large" color="#d97706" />;
+  const fetchPath = async () => {
+    try {
+      setIsLoading(true);
+      const data = await pathService.getPathById(id);
+      setPath(data);
+    } catch (err) {
+      errorHandler.handle(err, 'Impossible de charger le parcours');
+      navigation.goBack();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#d97706" />
+      </View>
+    );
+  }
+
+  if (!path) return null;
 
   const reversedQuests = [...path.quests].reverse();
 
@@ -70,19 +91,19 @@ export default function RoadmapScreen({ route, navigation }) {
   const handleStartQuest = () => {
     if (selectedQuestId && !inProgressQuests.includes(selectedQuestId)) {
       setInProgressQuests([...inProgressQuests, selectedQuestId]);
+      errorHandler.showSuccess('Étape commencée !');
     }
   };
 
   const handleValidateStep = () => {
     if (selectedQuestId && !completedQuests.includes(selectedQuestId)) {
       setCompletedQuests([...completedQuests, selectedQuestId]);
-      Alert.alert("Bravo ! 🎉", "Étape validée ! Passez à la suivante.");
+      errorHandler.showSuccess('Bravo ! 🎉 Étape validée !');
     }
   };
 
   const handleNodePress = (questId) => {
     setSelectedQuestId(questId);
-    // Animation d'ouverture (slide de droite à gauche)
     Animated.timing(slideAnim, {
       toValue: 0,
       duration: 300,
@@ -91,9 +112,8 @@ export default function RoadmapScreen({ route, navigation }) {
   };
 
   const handleClosePanel = () => {
-    // Animation de fermeture (slide de gauche à droite)
     Animated.timing(slideAnim, {
-      toValue: width * 0.75,
+      toValue: PANEL_WIDTH,
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
@@ -113,13 +133,11 @@ export default function RoadmapScreen({ route, navigation }) {
   return (
     <View style={styles.container}>
       
-      {/* HEADER ORANGE FIXE */}
       <View style={styles.fixedHeader}>
         <Text style={styles.city}>{path.city}</Text>
         <Text style={styles.pathTitle} numberOfLines={1}>{path.title}</Text>
       </View>
 
-      {/* ROADMAP */}
       <ScrollView 
         ref={scrollViewRef}
         contentContainerStyle={styles.roadmapContainer} 
@@ -129,7 +147,6 @@ export default function RoadmapScreen({ route, navigation }) {
       >
         <View style={{ height: reversedQuests.length * 140 + 200 }}>
           
-          {/* Ligne SVG */}
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <Svg width={width} height={reversedQuests.length * 140 + 200}>
               {generateSvgPath().map((pathData, idx) => (
@@ -145,7 +162,6 @@ export default function RoadmapScreen({ route, navigation }) {
             </Svg>
           </View>
 
-          {/* Nœuds */}
           {reversedQuests.map((quest, index) => {
             const realNumber = path.quests.length - index; 
             const pos = getQuestCoordinates(index);
@@ -181,13 +197,14 @@ export default function RoadmapScreen({ route, navigation }) {
                 </View>
                 
                 <View style={styles.nodeLabel}>
-                  <Text style={styles.nodeLabelText} numberOfLines={1}>{quest.title}</Text>
+                  <Text style={styles.nodeLabelText} numberOfLines={1}>
+                    {quest.title}
+                  </Text>
                 </View>
               </TouchableOpacity>
             );
           })}
           
-          {/* Badge Départ */}
           <View style={{ position: 'absolute', bottom: 50, left: 0, right: 0, justifyContent: 'center', alignItems: 'center' }}>
             <View style={styles.startBadgeContainer}>
               <Text style={styles.startBadgeText}>DÉPART 🚩</Text>
@@ -196,11 +213,10 @@ export default function RoadmapScreen({ route, navigation }) {
         </View>
       </ScrollView>
 
-      {/* PANNEAU LATÉRAL D'INFORMATIONS */}
       {selectedQuest && (
         <Animated.View style={[styles.sidePanel, { transform: [{ translateX: slideAnim }] }]}>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Header Orange avec Close */}
+            
             <View style={styles.sidePanelHeader}>
               <TouchableOpacity onPress={handleClosePanel} style={styles.closeButton}>
                 <X size={24} color="#fff" />
@@ -237,9 +253,7 @@ export default function RoadmapScreen({ route, navigation }) {
               </View>
             </View>
 
-            {/* Contenu */}
             <View style={styles.sidePanelContent}>
-              {/* Informations */}
               <View style={styles.infoSection}>
                 <Text style={styles.infoTitle}>INFORMATIONS</Text>
                 <View style={styles.descriptionBox}>
@@ -247,7 +261,6 @@ export default function RoadmapScreen({ route, navigation }) {
                 </View>
               </View>
 
-              {/* Bouton Voir Map */}
               <TouchableOpacity 
                 style={styles.mapButton}
                 onPress={() => navigation.navigate('Map', { id })}
@@ -258,7 +271,6 @@ export default function RoadmapScreen({ route, navigation }) {
             </View>
           </ScrollView>
 
-          {/* Footer avec boutons d'action */}
           <View style={styles.sidePanelFooter}>
             {isQuestNotStarted && (
               <TouchableOpacity style={styles.actionButton} onPress={handleStartQuest}>
@@ -284,7 +296,6 @@ export default function RoadmapScreen({ route, navigation }) {
         </Animated.View>
       )}
 
-      {/* BOTTOM NAV */}
       <BottomNav navigation={navigation} activeRoute="Roadmap" currentPathId={id} />
     </View>
   );
@@ -293,7 +304,13 @@ export default function RoadmapScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc', paddingBottom: 80 },
   
-  // Header orange fixe
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc'
+  },
+  
   fixedHeader: { 
     position: 'absolute',
     top: 0,
@@ -323,13 +340,12 @@ const styles = StyleSheet.create({
   startBadgeContainer: { backgroundColor:'#fff', paddingHorizontal:12, paddingVertical:6, borderRadius:20, borderWidth:2, borderColor:'#d97706', elevation: 2 },
   startBadgeText: { fontWeight: '900', color: '#d97706', fontSize: 12 },
 
-  // Panneau latéral
   sidePanel: {
     position: 'absolute',
     right: 0,
     top: 0,
     bottom: 80,
-    width: width * 0.75,
+    width: PANEL_WIDTH,
     backgroundColor: '#fff',
     elevation: 10,
     shadowColor: '#000',

@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Search, List, Map, User } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import storage from '../utils/storage';
+import errorHandler from '../utils/errorHandler';
 
 export default function BottomNav({ navigation, activeRoute, currentPathId }) {
   const [lastPathId, setLastPathId] = useState(null);
 
   useEffect(() => {
-    // Charger le dernier pathId au montage
     loadLastPathId();
     
-    // Si on reçoit un currentPathId, on le sauvegarde
     if (currentPathId) {
       savePathId(currentPathId);
     }
@@ -18,7 +17,7 @@ export default function BottomNav({ navigation, activeRoute, currentPathId }) {
 
   const loadLastPathId = async () => {
     try {
-      const saved = await AsyncStorage.getItem('lastPathId');
+      const saved = await storage.getItem('lastPathId');
       if (saved) setLastPathId(saved);
     } catch (error) {
       console.error('Erreur chargement pathId:', error);
@@ -27,7 +26,7 @@ export default function BottomNav({ navigation, activeRoute, currentPathId }) {
 
   const savePathId = async (id) => {
     try {
-      await AsyncStorage.setItem('lastPathId', id);
+      await storage.setItem('lastPathId', id);
       setLastPathId(id);
     } catch (error) {
       console.error('Erreur sauvegarde pathId:', error);
@@ -38,10 +37,9 @@ export default function BottomNav({ navigation, activeRoute, currentPathId }) {
     const pathId = currentPathId || lastPathId;
     
     if (!pathId) {
-      Alert.alert(
+      errorHandler.showInfo(
         "Aucun parcours sélectionné",
-        "Veuillez d'abord choisir un parcours depuis la recherche.",
-        [{ text: "OK" }]
+        "Veuillez d'abord choisir un parcours depuis la recherche."
       );
       return;
     }
@@ -53,10 +51,9 @@ export default function BottomNav({ navigation, activeRoute, currentPathId }) {
     const pathId = currentPathId || lastPathId;
     
     if (!pathId) {
-      Alert.alert(
+      errorHandler.showInfo(
         "Aucun parcours sélectionné", 
-        "Veuillez d'abord choisir un parcours depuis la recherche.",
-        [{ text: "OK" }]
+        "Veuillez d'abord choisir un parcours depuis la recherche."
       );
       return;
     }
@@ -67,7 +64,6 @@ export default function BottomNav({ navigation, activeRoute, currentPathId }) {
   return (
     <View style={styles.bottomNav}>
       
-      {/* RECHERCHE / CITY SELECTION */}
       <TouchableOpacity 
         style={[styles.navItem, activeRoute === 'CitySelection' && styles.activeNavItem]}
         onPress={() => navigation.navigate('CitySelection')}
@@ -79,7 +75,6 @@ export default function BottomNav({ navigation, activeRoute, currentPathId }) {
         />
       </TouchableOpacity>
 
-      {/* ROADMAP */}
       <TouchableOpacity 
         style={[styles.navItem, activeRoute === 'Roadmap' && styles.activeNavItem]}
         onPress={handleRoadmapPress}
@@ -91,7 +86,6 @@ export default function BottomNav({ navigation, activeRoute, currentPathId }) {
         />
       </TouchableOpacity>
 
-      {/* MAP */}
       <TouchableOpacity 
         style={[styles.navItem, activeRoute === 'Map' && styles.activeNavItem]}
         onPress={handleMapPress}
@@ -103,7 +97,6 @@ export default function BottomNav({ navigation, activeRoute, currentPathId }) {
         />
       </TouchableOpacity>
 
-      {/* PROFILE */}
       <TouchableOpacity 
         style={[styles.navItem, activeRoute === 'Profile' && styles.activeNavItem]}
         onPress={() => navigation.navigate('Profile')}
