@@ -30,3 +30,4 @@
     cd backend
     npm install bcryptjs
     cp .env.example .env
+    
