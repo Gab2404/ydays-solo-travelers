@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 import { AuthContext, AuthContextProvider } from './context/AuthContext';
+import { NavigationDirectionProvider, useNavigationDirection } from './context/NavigationContext';
 
 // Screens
 import LoginScreen from './screens/LoginScreen';
@@ -19,6 +20,7 @@ const Stack = createNativeStackNavigator();
 
 function AppNavigator() {
   const { user, isLoading } = useContext(AuthContext);
+  const { direction } = useNavigationDirection();
 
   if (isLoading) {
     return (
@@ -28,8 +30,18 @@ function AppNavigator() {
     );
   }
 
+  const isAdmin = user?.role === 'admin' || user?.certified;
+  
+  // Déterminer l'animation en fonction de la direction
+  const animationType = direction === 'right' ? 'slide_from_right' : 'slide_from_left';
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator 
+      screenOptions={{
+        headerShown: false,
+        animation: animationType,
+      }}
+    >
       {!user ? (
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
@@ -43,7 +55,7 @@ function AppNavigator() {
           <Stack.Screen name="Roadmap" component={RoadmapScreen} />
           <Stack.Screen name="Map" component={MapScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
-          {user.role === 'admin' && (
+          {isAdmin && (
             <Stack.Screen name="AdminPanel" component={AdminPanelScreen} />
           )}
         </>
@@ -55,9 +67,11 @@ function AppNavigator() {
 export default function App() {
   return (
     <AuthContextProvider>
-      <NavigationContainer>
-        <AppNavigator />
-      </NavigationContainer>
+      <NavigationDirectionProvider>
+        <NavigationContainer>
+          <AppNavigator />
+        </NavigationContainer>
+      </NavigationDirectionProvider>
     </AuthContextProvider>
   );
 }

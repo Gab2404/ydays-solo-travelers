@@ -1,17 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  View, Text, TextInput, TouchableOpacity, StyleSheet, 
-  ScrollView, Modal, FlatList, Keyboard, ActivityIndicator 
+import { AlertTriangle, Edit3, MapPin, Navigation, Package, Plus, Trash2 } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList, Keyboard,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text, TextInput, TouchableOpacity,
+  View
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
-import { Trash2, AlertTriangle } from 'lucide-react-native';
+import MapView from 'react-native-maps';
+import BottomNav from '../components/BottomNav';
+import { CATEGORIES } from '../constants';
 import pathService from '../services/pathService';
 import questService from '../services/questService';
 import errorHandler from '../utils/errorHandler';
-import validation from '../utils/validation';
 
 export default function AdminPanelScreen({ navigation }) {
-  const [tab, setTab] = useState('path');
+  const [activeTab, setActiveTab] = useState('paths'); // 'paths' ou 'quests'
   
   // Data Parcours
   const [pathData, setPathData] = useState({ 
@@ -25,7 +31,7 @@ export default function AdminPanelScreen({ navigation }) {
   // Data Quêtes
   const [paths, setPaths] = useState([]);
   const [selectedPath, setSelectedPath] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
+  const [pathModalVisible, setPathModalVisible] = useState(false);
   const [questData, setQuestData] = useState({ 
     title: '', 
     description: '', 
@@ -85,20 +91,39 @@ export default function AdminPanelScreen({ navigation }) {
   };
 
   const handleCreatePath = async () => {
-    // Validation
     if (!pathData.city || !pathData.title) {
       errorHandler.showInfo("Erreur", "Titre et Ville obligatoires");
       return;
     }
 
     try {
-      await pathService.createPath(pathData);
+      const newPath = await pathService.createPath(pathData);
       errorHandler.showSuccess('Parcours créé avec succès !');
       setPathData({ title: '', city: '', difficulty: 'Culturel', description: '' });
-      fetchPaths(); 
+      fetchPaths();
+      setSelectedPath(newPath);
     } catch (err) { 
       errorHandler.handle(err, "Impossible de créer le parcours");
     }
+  };
+
+  const handleDeletePath = (path) => {
+    errorHandler.showConfirmation(
+      "Supprimer le parcours ?",
+      `Attention : Vous allez supprimer "${path.title}" et TOUTES ses quêtes.`,
+      async () => {
+        try {
+          await pathService.deletePath(path._id);
+          if (selectedPath?._id === path._id) {
+            setSelectedPath(null);
+          }
+          fetchPaths();
+          errorHandler.showSuccess('Le parcours a été effacé.');
+        } catch (err) { 
+          errorHandler.handle(err, "Impossible de supprimer.");
+        }
+      }
+    );
   };
 
   const handleAddressSearch = async () => {
@@ -138,7 +163,6 @@ export default function AdminPanelScreen({ navigation }) {
       return;
     }
 
-    // Validation
     if (!questData.title.trim()) {
       errorHandler.showInfo("Erreur", "Le titre est obligatoire");
       return;
@@ -154,7 +178,7 @@ export default function AdminPanelScreen({ navigation }) {
         }
       });
       
-      errorHandler.showSuccess('Quête ajoutée avec succès !');
+      errorHandler.showSuccess('Étape ajoutée avec succès !');
       setQuestData({ title: '', description: '', clue: '' });
       setAddressSearch('');
       fetchPaths();
@@ -179,52 +203,37 @@ export default function AdminPanelScreen({ navigation }) {
     );
   };
 
-  const handleDeletePath = () => {
-    errorHandler.showConfirmation(
-      "Supprimer le parcours ?",
-      `Attention : Vous allez supprimer "${selectedPath.title}" et TOUTES ses quêtes.`,
-      async () => {
-        try {
-          await pathService.deletePath(selectedPath._id);
-          setSelectedPath(null);
-          fetchPaths();
-          errorHandler.showSuccess('Le parcours a été effacé.');
-        } catch (err) { 
-          errorHandler.handle(err, "Impossible de supprimer.");
-        }
-      }
-    );
-  };
-
-  const categories = ['Culturel', 'Sportif', 'Culinaire', 'Détente', 'Mixte'];
+  const categories = CATEGORIES.map(cat => cat.value);
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => navigation.goBack()} 
-          style={styles.backBtn}
-        >
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Studio Création 🛠️</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Studio Création</Text>
+          <Text style={styles.headerSubtitle}>Gérez vos parcours et quêtes</Text>
+        </View>
       </View>
 
-      <View style={styles.tabs}>
+      {/* Tabs */}
+      <View style={styles.tabsContainer}>
         <TouchableOpacity 
-          onPress={() => setTab('path')} 
-          style={[styles.tab, tab === 'path' && styles.activeTab]}
+          style={[styles.tab, activeTab === 'paths' && styles.activeTab]}
+          onPress={() => setActiveTab('paths')}
         >
-          <Text style={[styles.tabText, tab === 'path' && styles.activeTabText]}>
+          <Package size={20} color={activeTab === 'paths' ? '#d97706' : '#64748b'} />
+          <Text style={[styles.tabText, activeTab === 'paths' && styles.activeTabText]}>
             Parcours
           </Text>
         </TouchableOpacity>
+        
         <TouchableOpacity 
-          onPress={() => setTab('quest')} 
-          style={[styles.tab, tab === 'quest' && styles.activeTab]}
+          style={[styles.tab, activeTab === 'quests' && styles.activeTab]}
+          onPress={() => setActiveTab('quests')}
         >
-          <Text style={[styles.tabText, tab === 'quest' && styles.activeTabText]}>
-            Gestion & Quêtes
+          <Navigation size={20} color={activeTab === 'quests' ? '#d97706' : '#64748b'} />
+          <Text style={[styles.tabText, activeTab === 'quests' && styles.activeTabText]}>
+            Étapes
           </Text>
         </TouchableOpacity>
       </View>
@@ -232,172 +241,301 @@ export default function AdminPanelScreen({ navigation }) {
       <ScrollView 
         contentContainerStyle={styles.content} 
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        {tab === 'path' ? (
-          <View style={styles.card}>
-            <Text style={styles.label}>Titre du parcours</Text>
-            <TextInput 
-              style={styles.input} 
-              placeholderTextColor="#9ca3af" 
-              placeholder="Ex: Bordeaux Gourmand" 
-              value={pathData.title} 
-              onChangeText={t => setPathData({...pathData, title: t})} 
-            />
-            
-            <Text style={styles.label}>Ville</Text>
-            <View>
-              <TextInput 
-                style={styles.input} 
-                placeholderTextColor="#9ca3af" 
-                placeholder="Tapez une ville..." 
-                value={pathData.city} 
-                onChangeText={searchCity} 
-              />
-              {citySuggestions.length > 0 && (
-                <View style={styles.suggestionsBox}>
-                  {citySuggestions.map((city) => (
-                    <TouchableOpacity 
-                      key={city.code} 
-                      style={styles.suggestionItem} 
-                      onPress={() => selectCity(city.nom)}
-                    >
-                      <Text style={styles.suggestionText}>{city.nom}</Text>
-                    </TouchableOpacity>
+        {/* TAB PARCOURS */}
+        {activeTab === 'paths' && (
+          <>
+            {/* Créer un parcours */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Plus size={22} color="#d97706" />
+                <Text style={styles.sectionTitle}>Créer un parcours</Text>
+              </View>
+
+              <View style={styles.card}>
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Titre du parcours *</Text>
+                  <TextInput 
+                    style={styles.input} 
+                    placeholderTextColor="#9ca3af" 
+                    placeholder="Ex: Bordeaux Gourmand" 
+                    value={pathData.title} 
+                    onChangeText={t => setPathData({...pathData, title: t})} 
+                  />
+                </View>
+                
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Ville *</Text>
+                  <TextInput 
+                    style={styles.input} 
+                    placeholderTextColor="#9ca3af" 
+                    placeholder="Tapez une ville..." 
+                    value={pathData.city} 
+                    onChangeText={searchCity} 
+                  />
+                  {citySuggestions.length > 0 && (
+                    <View style={styles.suggestionsBox}>
+                      {citySuggestions.map((city) => (
+                        <TouchableOpacity 
+                          key={city.code} 
+                          style={styles.suggestionItem} 
+                          onPress={() => selectCity(city.nom)}
+                        >
+                          <MapPin size={16} color="#64748b" />
+                          <Text style={styles.suggestionText}>{city.nom}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+                
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Catégorie</Text>
+                  <View style={styles.categoryContainer}>
+                    {categories.map(cat => {
+                      const categoryInfo = CATEGORIES.find(c => c.value === cat);
+                      return (
+                        <TouchableOpacity 
+                          key={cat} 
+                          style={[
+                            styles.catChip, 
+                            pathData.difficulty === cat && styles.activeCatChip
+                          ]}
+                          onPress={() => setPathData({...pathData, difficulty: cat})}
+                        >
+                          <Text style={styles.catEmoji}>{categoryInfo?.icon}</Text>
+                          <Text style={[
+                            styles.catText, 
+                            pathData.difficulty === cat && styles.activeCatText
+                          ]}>
+                            {cat}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+                
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Description</Text>
+                  <TextInput 
+                    style={[styles.input, styles.textArea]} 
+                    placeholderTextColor="#9ca3af" 
+                    multiline 
+                    numberOfLines={4}
+                    placeholder="Décrivez votre parcours..." 
+                    value={pathData.description} 
+                    onChangeText={t => setPathData({...pathData, description: t})} 
+                  />
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.primaryBtn} 
+                  onPress={handleCreatePath}
+                >
+                  <Plus size={20} color="#fff" />
+                  <Text style={styles.primaryBtnText}>Créer le Parcours</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Liste des parcours existants */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Edit3 size={22} color="#0ea5e9" />
+                <Text style={styles.sectionTitle}>Parcours existants ({paths.length})</Text>
+              </View>
+
+              {paths.length === 0 ? (
+                <View style={styles.emptyCard}>
+                  <Text style={styles.emptyText}>Aucun parcours créé pour le moment</Text>
+                </View>
+              ) : (
+                <View style={styles.pathsList}>
+                  {paths.map((path) => (
+                    <View key={path._id} style={styles.pathCard}>
+                      <View style={styles.pathCardContent}>
+                        <View style={styles.pathInfo}>
+                          <Text style={styles.pathTitle}>{path.title}</Text>
+                          <Text style={styles.pathCity}>📍 {path.city}</Text>
+                          <View style={styles.pathMeta}>
+                            <Text style={styles.pathCategory}>
+                              {CATEGORIES.find(c => c.value === path.difficulty)?.icon} {path.difficulty}
+                            </Text>
+                            <Text style={styles.pathQuests}>
+                              {path.quests?.length || 0} étape(s)
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                      <TouchableOpacity 
+                        onPress={() => handleDeletePath(path)} 
+                        style={styles.deleteBtn}
+                      >
+                        <Trash2 size={20} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
                   ))}
                 </View>
               )}
             </View>
-            
-            <Text style={styles.label}>Catégorie</Text>
-            <View style={styles.categoryContainer}>
-              {categories.map(cat => (
-                <TouchableOpacity 
-                  key={cat} 
-                  style={[
-                    styles.catChip, 
-                    pathData.difficulty === cat && styles.activeCatChip
-                  ]}
-                  onPress={() => setPathData({...pathData, difficulty: cat})}
-                >
-                  <Text style={[
-                    styles.catText, 
-                    pathData.difficulty === cat && styles.activeCatText
-                  ]}>
-                    {cat}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            
-            <Text style={styles.label}>Description</Text>
-            <TextInput 
-              style={[styles.input, {height: 80}]} 
-              placeholderTextColor="#9ca3af" 
-              multiline 
-              placeholder="Description..." 
-              value={pathData.description} 
-              onChangeText={t => setPathData({...pathData, description: t})} 
-            />
-            
-            <TouchableOpacity 
-              style={styles.mainBtn} 
-              onPress={handleCreatePath}
-            >
-              <Text style={styles.mainBtnText}>Créer le Parcours</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.card}>
-            
-            <Text style={styles.sectionTitle}>1. Choisir le parcours à gérer</Text>
-            <TouchableOpacity 
-              style={styles.selectBtn} 
-              onPress={() => setModalVisible(true)}
-            >
-              <Text style={styles.selectBtnText}>
-                {selectedPath ? selectedPath.title : "Appuyer pour sélectionner --"}
-              </Text>
-            </TouchableOpacity>
+          </>
+        )}
 
-            {selectedPath && (
-              <>
-                <Text style={styles.sectionTitle}>2. Ajouter une étape</Text>
-                <Text style={styles.label}>Titre</Text>
-                <TextInput 
-                  style={styles.input} 
-                  placeholder="Ex: La porte Cailhau" 
-                  placeholderTextColor="#9ca3af" 
-                  value={questData.title} 
-                  onChangeText={t => setQuestData({...questData, title: t})} 
-                />
-                
-                <Text style={styles.label}>Consigne</Text>
-                <TextInput 
-                  style={[styles.input, {height: 60}]} 
-                  multiline 
-                  placeholder="Ex: Trouvez la porte..." 
-                  placeholderTextColor="#9ca3af" 
-                  value={questData.description} 
-                  onChangeText={t => setQuestData({...questData, description: t})} 
-                />
-                
-                <View style={styles.searchContainer}>
-                  <TextInput 
-                    style={styles.searchInput} 
-                    placeholder="Adresse..." 
-                    placeholderTextColor="#9ca3af" 
-                    value={addressSearch} 
-                    onChangeText={setAddressSearch} 
-                    onSubmitEditing={handleAddressSearch} 
-                  />
-                  <TouchableOpacity 
-                    style={styles.searchBtn} 
-                    onPress={handleAddressSearch}
-                  >
-                    {isSearching ? (
-                      <ActivityIndicator color="#fff" size="small"/>
-                    ) : (
-                      <Text style={styles.searchBtnText}>🔍</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
+        {/* TAB QUÊTES */}
+        {activeTab === 'quests' && (
+          <>
+            {/* Sélectionner un parcours */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Package size={22} color="#0ea5e9" />
+                <Text style={styles.sectionTitle}>Parcours actif</Text>
+              </View>
 
-                <View style={styles.mapContainer}>
-                  <MapView 
-                    style={styles.map} 
-                    region={questLocation} 
-                    onRegionChangeComplete={(region) => setQuestLocation(region)} 
-                  />
-                  <View style={styles.markerFixed}>
-                    <View style={styles.markerRing} />
-                    <View style={styles.markerDot} />
+              {selectedPath ? (
+                <View style={styles.selectedPathCard}>
+                  <View style={styles.selectedPathHeader}>
+                    <View style={styles.selectedPathInfo}>
+                      <Text style={styles.selectedPathTitle}>{selectedPath.title}</Text>
+                      <Text style={styles.selectedPathCity}>📍 {selectedPath.city}</Text>
+                      <Text style={styles.selectedPathQuests}>
+                        {selectedPath.quests?.length || 0} étape(s)
+                      </Text>
+                    </View>
+                    <TouchableOpacity 
+                      onPress={() => setPathModalVisible(true)}
+                      style={styles.changePathBtn}
+                    >
+                      <Edit3 size={18} color="#d97706" />
+                      <Text style={styles.changePathText}>Changer</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
-
+              ) : (
                 <TouchableOpacity 
-                  style={styles.mainBtn} 
-                  onPress={handleCreateQuest}
+                  style={styles.selectPathBtn} 
+                  onPress={() => setPathModalVisible(true)}
                 >
-                  <Text style={styles.mainBtnText}>Sauvegarder l'étape</Text>
+                  <MapPin size={20} color="#0ea5e9" />
+                  <Text style={styles.selectPathText}>Sélectionner un parcours</Text>
                 </TouchableOpacity>
+              )}
+            </View>
 
-                <View style={styles.divider} />
+            {/* Ajouter une étape */}
+            {selectedPath && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Plus size={22} color="#d97706" />
+                  <Text style={styles.sectionTitle}>Ajouter une étape</Text>
+                </View>
 
-                <Text style={styles.sectionTitle}>3. Gestion du contenu</Text>
-                
-                {selectedPath.quests && selectedPath.quests.length > 0 ? (
-                  <View style={styles.questListContainer}>
-                    <Text style={styles.label}>
-                      Étapes actuelles ({selectedPath.quests.length})
+                <View style={styles.card}>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Titre de l'étape *</Text>
+                    <TextInput 
+                      style={styles.input} 
+                      placeholder="Ex: La Porte Cailhau" 
+                      placeholderTextColor="#9ca3af" 
+                      value={questData.title} 
+                      onChangeText={t => setQuestData({...questData, title: t})} 
+                    />
+                  </View>
+                  
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Consigne</Text>
+                    <TextInput 
+                      style={[styles.input, styles.textArea]} 
+                      multiline 
+                      numberOfLines={3}
+                      placeholder="Ex: Trouvez la porte médiévale..." 
+                      placeholderTextColor="#9ca3af" 
+                      value={questData.description} 
+                      onChangeText={t => setQuestData({...questData, description: t})} 
+                    />
+                  </View>
+                  
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Localisation *</Text>
+                    <View style={styles.searchContainer}>
+                      <TextInput 
+                        style={styles.searchInput} 
+                        placeholder="Rechercher une adresse..." 
+                        placeholderTextColor="#9ca3af" 
+                        value={addressSearch} 
+                        onChangeText={setAddressSearch} 
+                        onSubmitEditing={handleAddressSearch} 
+                      />
+                      <TouchableOpacity 
+                        style={styles.searchBtn} 
+                        onPress={handleAddressSearch}
+                      >
+                        {isSearching ? (
+                          <ActivityIndicator color="#fff" size="small"/>
+                        ) : (
+                          <Text style={styles.searchBtnText}>🔍</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.mapContainer}>
+                      <MapView 
+                        style={styles.map} 
+                        region={questLocation} 
+                        onRegionChangeComplete={(region) => setQuestLocation(region)} 
+                      />
+                      <View style={styles.markerFixed}>
+                        <View style={styles.markerRing} />
+                        <View style={styles.markerDot} />
+                      </View>
+                    </View>
+                    <Text style={styles.mapHint}>
+                      💡 Déplacez la carte pour ajuster la position
                     </Text>
+                  </View>
+
+                  <TouchableOpacity 
+                    style={styles.primaryBtn} 
+                    onPress={handleCreateQuest}
+                  >
+                    <Plus size={20} color="#fff" />
+                    <Text style={styles.primaryBtnText}>Ajouter l'étape</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Liste des étapes */}
+            {selectedPath && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Edit3 size={22} color="#0ea5e9" />
+                  <Text style={styles.sectionTitle}>
+                    Étapes ({selectedPath.quests?.length || 0})
+                  </Text>
+                </View>
+
+                {selectedPath.quests && selectedPath.quests.length > 0 ? (
+                  <View style={styles.questsList}>
                     {selectedPath.quests.map((quest, index) => (
-                      <View key={quest._id} style={styles.questItem}>
-                        <Text style={styles.questItemText} numberOfLines={1}>
-                          <Text style={{fontWeight: 'bold'}}>{index + 1}.</Text> {quest.title}
-                        </Text>
+                      <View key={quest._id} style={styles.questCard}>
+                        <View style={styles.questCardContent}>
+                          <View style={styles.questNumber}>
+                            <Text style={styles.questNumberText}>{index + 1}</Text>
+                          </View>
+                          <View style={styles.questInfo}>
+                            <Text style={styles.questTitle}>{quest.title}</Text>
+                            {quest.description && (
+                              <Text style={styles.questDescription} numberOfLines={2}>
+                                {quest.description}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
                         <TouchableOpacity 
                           onPress={() => handleDeleteQuest(quest._id)} 
-                          style={styles.deleteQuestBtn}
+                          style={styles.deleteBtn}
                         >
                           <Trash2 size={20} color="#ef4444" />
                         </TouchableOpacity>
@@ -405,123 +543,603 @@ export default function AdminPanelScreen({ navigation }) {
                     ))}
                   </View>
                 ) : (
-                  <Text style={{fontStyle: 'italic', color: '#9ca3af', marginBottom: 10}}>
-                    Aucune étape dans ce parcours.
-                  </Text>
-                )}
-
-                <View style={styles.dangerZone}>
-                  <View style={styles.dangerHeader}>
-                    <AlertTriangle size={20} color="#ef4444" />
-                    <Text style={styles.dangerTitle}>Zone de Danger</Text>
+                  <View style={styles.emptyCard}>
+                    <Text style={styles.emptyText}>Aucune étape pour ce parcours</Text>
                   </View>
-                  <Text style={styles.dangerDesc}>
-                    La suppression est irréversible et effacera toutes les quêtes associées.
-                  </Text>
-                  <TouchableOpacity 
-                    style={styles.deletePathBtn} 
-                    onPress={handleDeletePath}
-                  >
-                    <Text style={styles.deletePathText}>Supprimer ce Parcours</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
+                )}
+              </View>
             )}
-
-          </View>
+          </>
         )}
       </ScrollView>
 
-      <Modal visible={modalVisible} animationType="slide" transparent={true}>
+      {/* Modal de sélection de parcours */}
+      <Modal visible={pathModalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Choisir un parcours</Text>
-            <FlatList 
-              data={paths} 
-              keyExtractor={item => item._id}
-              renderItem={({item}) => (
-                <TouchableOpacity 
-                  style={styles.modalItem} 
-                  onPress={() => { 
-                    setSelectedPath(item); 
-                    setModalVisible(false); 
-                  }}
-                >
-                  <Text style={styles.modalItemText}>
-                    {item.title} ({item.city})
-                  </Text>
-                </TouchableOpacity>
-              )}
-            />
+            <Text style={styles.modalTitle}>Sélectionner un parcours</Text>
+            
+            {paths.length === 0 ? (
+              <View style={styles.emptyModalState}>
+                <AlertTriangle size={40} color="#f59e0b" />
+                <Text style={styles.emptyModalText}>
+                  Aucun parcours disponible. Créez-en un d'abord !
+                </Text>
+              </View>
+            ) : (
+              <FlatList 
+                data={paths} 
+                keyExtractor={item => item._id}
+                renderItem={({item}) => (
+                  <TouchableOpacity 
+                    style={[
+                      styles.modalItem,
+                      selectedPath?._id === item._id && styles.modalItemSelected
+                    ]}
+                    onPress={() => { 
+                      setSelectedPath(item); 
+                      setPathModalVisible(false);
+                    }}
+                  >
+                    <View style={styles.modalItemContent}>
+                      <Text style={styles.modalItemTitle}>{item.title}</Text>
+                      <Text style={styles.modalItemCity}>📍 {item.city}</Text>
+                      <Text style={styles.modalItemQuests}>
+                        {item.quests?.length || 0} étape(s)
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+            
             <TouchableOpacity 
               style={styles.closeBtn} 
-              onPress={() => setModalVisible(false)}
+              onPress={() => setPathModalVisible(false)}
             >
               <Text style={styles.closeBtnText}>Fermer</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
+
+      <BottomNav navigation={navigation} activeRoute="AdminPanel" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc', paddingTop: 50 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 },
-  backBtn: { marginRight: 15, padding: 5 },
-  backText: { fontSize: 24, fontWeight: 'bold', color: '#64748b' },
-  headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#1e293b' },
-  tabs: { flexDirection: 'row', paddingHorizontal: 20, marginBottom: 20 },
-  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: '#e2e8f0' },
-  activeTab: { borderBottomColor: '#d97706' },
-  tabText: { fontWeight: 'bold', color: '#94a3b8' },
-  activeTabText: { color: '#d97706' },
-  content: { paddingHorizontal: 20, paddingBottom: 40 },
-  card: { backgroundColor: '#fff', borderRadius: 15, padding: 20, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#1e293b', marginTop: 15, marginBottom: 10 },
-  label: { fontSize: 12, fontWeight: 'bold', color: '#64748b', marginBottom: 6, marginLeft: 2 },
-  input: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, padding: 12, fontSize: 16, color: '#1e293b', marginBottom: 15 },
-  categoryContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 15 },
-  catChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#e2e8f0' },
-  activeCatChip: { backgroundColor: '#fff7ed', borderColor: '#d97706' },
-  catText: { fontSize: 12, color: '#64748b', fontWeight: '600' },
-  activeCatText: { color: '#d97706' },
-  suggestionsBox: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, maxHeight: 150, marginTop: -10, marginBottom: 15 },
-  suggestionItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  suggestionText: { color: '#334155' },
-  selectBtn: { backgroundColor: '#f0f9ff', padding: 15, borderRadius: 10, borderWidth: 1, borderColor: '#0ea5e9', marginBottom: 10 },
-  selectBtnText: { color: '#0284c7', fontWeight: 'bold', textAlign: 'center' },
-  searchContainer: { flexDirection: 'row', marginBottom: 10 },
-  searchInput: { flex: 1, backgroundColor: '#fff', borderWidth: 1, borderColor: '#cbd5e1', borderTopLeftRadius: 10, borderBottomLeftRadius: 10, padding: 10, color: '#1e293b' },
-  searchBtn: { backgroundColor: '#d97706', padding: 12, borderTopRightRadius: 10, borderBottomRightRadius: 10, justifyContent: 'center' },
-  searchBtnText: { fontSize: 18 },
-  mapContainer: { height: 200, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#e2e8f0', position: 'relative' },
-  map: { width: '100%', height: '100%' },
-  markerFixed: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', pointerEvents: 'none' },
-  markerRing: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#ef4444' },
-  markerDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#ef4444', position: 'absolute' },
-  mainBtn: { backgroundColor: '#d97706', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
-  mainBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  
-  divider: { height: 1, backgroundColor: '#e2e8f0', marginVertical: 20 },
-  questListContainer: { marginBottom: 20 },
-  questItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#f1f5f9' },
-  questItemText: { fontSize: 14, color: '#334155', flex: 1, fontWeight: '500' },
-  deleteQuestBtn: { padding: 5 },
-  
-  dangerZone: { backgroundColor: '#fee2e2', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#fecaca' },
-  dangerHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
-  dangerTitle: { color: '#991b1b', fontWeight: 'bold', marginLeft: 8, fontSize: 14 },
-  dangerDesc: { color: '#b91c1c', fontSize: 12, marginBottom: 15 },
-  deletePathBtn: { backgroundColor: '#ef4444', padding: 12, borderRadius: 8, alignItems: 'center' },
-  deletePathText: { color: '#fff', fontWeight: 'bold' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f8fafc', 
+    paddingTop: 50 
+  },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: 20, 
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#fff'
+  },
+  headerContent: {
+    flex: 1
+  },
+  headerTitle: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    color: '#1e293b' 
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 2
+  },
 
-  modalContainer: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 20 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 15, padding: 20, maxHeight: '60%' },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
-  modalItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  modalItemText: { fontSize: 16, color: '#334155', textAlign: 'center' },
-  closeBtn: { marginTop: 20, alignSelf: 'center', padding: 10 },
-  closeBtnText: { color: '#ef4444', fontWeight: 'bold' }
+  // Tabs
+  tabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0'
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent'
+  },
+  activeTab: {
+    borderBottomColor: '#d97706'
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#64748b'
+  },
+  activeTabText: {
+    color: '#d97706'
+  },
+
+  content: { 
+    paddingHorizontal: 20, 
+    paddingTop: 20,
+    paddingBottom: 120
+  },
+
+  // Sections
+  section: {
+    marginBottom: 24
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1e293b'
+  },
+
+  // Cards
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2
+  },
+
+  formGroup: {
+    marginBottom: 20
+  },
+  label: { 
+    fontSize: 13, 
+    fontWeight: '700', 
+    color: '#334155', 
+    marginBottom: 8,
+    letterSpacing: 0.3
+  },
+  input: { 
+    backgroundColor: '#ffffff', 
+    borderWidth: 1.5, 
+    borderColor: '#e2e8f0', 
+    borderRadius: 12, 
+    padding: 14, 
+    fontSize: 16, 
+    color: '#1e293b'
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top'
+  },
+
+  categoryContainer: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    gap: 10
+  },
+  catChip: { 
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14, 
+    paddingVertical: 10, 
+    borderRadius: 25, 
+    backgroundColor: '#f8fafc', 
+    borderWidth: 1.5, 
+    borderColor: '#e2e8f0'
+  },
+  activeCatChip: { 
+    backgroundColor: '#fff7ed', 
+    borderColor: '#d97706'
+  },
+  catEmoji: {
+    fontSize: 16,
+    marginRight: 6
+  },
+  catText: { 
+    fontSize: 13, 
+    color: '#64748b', 
+    fontWeight: '600' 
+  },
+  activeCatText: { 
+    color: '#d97706',
+    fontWeight: '700'
+  },
+
+  suggestionsBox: { 
+    backgroundColor: '#fff', 
+    borderWidth: 1.5, 
+    borderColor: '#e2e8f0', 
+    borderRadius: 12, 
+    marginTop: 8,
+    overflow: 'hidden'
+  },
+  suggestionItem: { 
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#f1f5f9'
+  },
+  suggestionText: { 
+    color: '#334155',
+    fontSize: 15,
+    marginLeft: 8
+  },
+
+  // Buttons
+  primaryBtn: {
+    flexDirection: 'row',
+    backgroundColor: '#d97706',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#d97706',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4
+  },
+  primaryBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginLeft: 8
+  },
+
+  // Paths List
+  pathsList: {
+    gap: 12
+  },
+  pathCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: "#000",
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1
+  },
+  pathCardContent: {
+    flex: 1
+  },
+  pathInfo: {
+    flex: 1
+  },
+  pathTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 4
+  },
+  pathCity: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 8
+  },
+  pathMeta: {
+    flexDirection: 'row',
+    gap: 12
+  },
+  pathCategory: {
+    fontSize: 12,
+    color: '#d97706',
+    fontWeight: '600',
+    backgroundColor: '#fff7ed',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12
+  },
+  pathQuests: {
+    fontSize: 12,
+    color: '#0ea5e9',
+    fontWeight: '600',
+    backgroundColor: '#f0f9ff',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12
+  },
+  deleteBtn: {
+    padding: 8,
+    marginLeft: 12
+  },
+
+  // Selected Path
+  selectedPathCard: {
+    backgroundColor: '#f0f9ff',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#bae6fd'
+  },
+  selectedPathHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start'
+  },
+  selectedPathInfo: {
+    flex: 1
+  },
+  selectedPathTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#0c4a6e',
+    marginBottom: 4
+  },
+  selectedPathCity: {
+    fontSize: 14,
+    color: '#075985',
+    marginBottom: 4
+  },
+  selectedPathQuests: {
+    fontSize: 13,
+    color: '#0369a1',
+    fontWeight: '600'
+  },
+  changePathBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d97706'
+  },
+  changePathText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#d97706'
+  },
+  selectPathBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#f0f9ff',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#0ea5e9'
+  },
+  selectPathText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0ea5e9'
+  },
+
+  // Search Container
+  searchContainer: {
+    flexDirection: 'row',
+    marginBottom: 12
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    color: '#1e293b'
+  },
+  searchBtn: {
+    backgroundColor: '#d97706',
+    paddingHorizontal: 20,
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 60
+  },
+  searchBtnText: {
+    fontSize: 20
+  },
+
+  // Map
+  mapContainer: {
+    height: 250,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    position: 'relative',
+    marginBottom: 8
+  },
+  map: {
+    width: '100%',
+    height: '100%'
+  },
+  markerFixed: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    pointerEvents: 'none'
+  },
+  markerRing: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 3,
+    borderColor: '#d97706',
+    backgroundColor: 'rgba(217, 119, 6, 0.2)'
+  },
+  markerDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#d97706',
+    position: 'absolute'
+  },
+  mapHint: {
+    fontSize: 12,
+    color: '#64748b',
+    fontStyle: 'italic'
+  },
+
+  // Quests List
+  questsList: {
+    gap: 10
+  },
+  questCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0'
+  },
+  questCardContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  questNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#d97706',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12
+  },
+  questNumberText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14
+  },
+  questInfo: {
+    flex: 1
+  },
+  questTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 2
+  },
+  questDescription: {
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 18
+  },
+
+  // Empty States
+  emptyCard: {
+    backgroundColor: '#fff',
+    padding: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderStyle: 'dashed'
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#94a3b8',
+    fontStyle: 'italic',
+    textAlign: 'center'
+  },
+
+  // Modal
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 20
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    maxHeight: '70%',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: 20,
+    textAlign: 'center'
+  },
+  emptyModalState: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 12
+  },
+  emptyModalText: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    fontStyle: 'italic'
+  },
+  modalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    backgroundColor: '#fff'
+  },
+  modalItemSelected: {
+    backgroundColor: '#f0f9ff',
+    borderLeftWidth: 3,
+    borderLeftColor: '#0ea5e9'
+  },
+  modalItemContent: {
+    flex: 1
+  },
+  modalItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 4
+  },
+  modalItemCity: {
+    fontSize: 13,
+    color: '#64748b',
+    marginBottom: 2
+  },
+  modalItemQuests: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontWeight: '500'
+  },
+  closeBtn: {
+    marginTop: 16,
+    padding: 12,
+    alignItems: 'center'
+  },
+  closeBtnText: {
+    color: '#ef4444',
+    fontWeight: 'bold',
+    fontSize: 16
+  }
 });

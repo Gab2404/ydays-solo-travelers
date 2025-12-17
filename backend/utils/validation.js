@@ -12,7 +12,7 @@ const isValidPhone = (phone) => {
 
 // Validation password (min 6 caractères)
 const isValidPassword = (password) => {
-  return password && password.length >= 6;
+  return password && password.length >= 4;
 };
 
 // Validation des coordonnées GPS

@@ -26,3 +26,7 @@
     npm install lucide-react-native react-native-svg
 
     npx expo install react-native-svg
+
+    cd backend
+    npm install bcryptjs
+    cp .env.example .env
