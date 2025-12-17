@@ -1,0 +1,409 @@
+import React, { useEffect, useState } from 'react';
+import { 
+  View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, 
+  ScrollView, Dimensions, ImageBackground 
+} from 'react-native';
+import { Clock, MapPin, Star, ArrowLeft, Users } from 'lucide-react-native';
+import pathService from '../services/pathService';
+import storage from '../utils/storage';
+import errorHandler from '../utils/errorHandler';
+import BottomNav from '../components/BottomNav';
+
+const { width } = Dimensions.get('window');
+
+export default function PathDetailScreen({ route, navigation }) {
+  const { id } = route.params;
+  const [path, setPath] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const categoryImages = {
+    'Culturel': require('../assets/images/culturel.png'),
+    'Sportif': require('../assets/images/sportif.png'),
+    'Culinaire': require('../assets/images/culinaire.png'),
+    'Détente': require('../assets/images/detente.png'),
+    'Mixte': require('../assets/images/mixte.png'),
+  };
+
+  useEffect(() => {
+    fetchPath();
+  }, [id]);
+
+  const fetchPath = async () => {
+    try {
+      setIsLoading(true);
+      const data = await pathService.getPathById(id);
+      setPath(data);
+    } catch (err) {
+      errorHandler.handle(err, 'Impossible de charger le parcours');
+      navigation.goBack();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getCategoryStyle = (category) => {
+    const styles = {
+      'Culturel': { bg: '#fef9c3', text: '#b45309', icon: '#b45309' },
+      'Sportif': { bg: '#fee2e2', text: '#ef4444', icon: '#ef4444' },
+      'Culinaire': { bg: '#ede9fe', text: '#7c3aed', icon: '#7c3aed' },
+      'Détente': { bg: '#d1fae5', text: '#059669', icon: '#059669' },
+      'Mixte': { bg: '#e0f2fe', text: '#0284c7', icon: '#0284c7' }
+    };
+    return styles[category] || { bg: '#f1f5f9', text: '#64748b', icon: '#8b5cf6' };
+  };
+
+  const handleStartTrip = async () => {
+    try {
+      await storage.setItem('lastPathId', path._id);
+      navigation.navigate('Roadmap', { id: path._id });
+    } catch (error) {
+      console.error('Erreur sauvegarde parcours:', error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#f97316" />
+      </View>
+    );
+  }
+
+  if (!path) return null;
+
+  const estimatedTime = `${(path.quests.length * 20)} min`; 
+  const estimatedDistance = `${(path.quests.length * 0.8).toFixed(1)} km`;
+  const categoryStyle = getCategoryStyle(path.difficulty);
+  const categoryImage = path.difficulty ? categoryImages[path.difficulty] : null;
+
+  return (
+    <View style={styles.container}>
+      
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+          <ArrowLeft size={24} color="#1e293b" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView 
+        contentContainerStyle={styles.content} 
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        
+        <View style={[styles.imageCard, { transform: [{ rotate: '-1deg' }] }]}>
+          {categoryImage ? (
+            <ImageBackground 
+              source={categoryImage} 
+              style={styles.imagePlaceholder}
+              imageStyle={{ borderTopLeftRadius: 20, borderTopRightRadius: 20 }}
+              resizeMode="cover"
+            >
+              <View style={styles.imageOverlay} />
+            </ImageBackground>
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Text style={styles.imagePlaceholderText}>📷</Text>
+              <Text style={styles.imagePlaceholderSubtext}>Photo de destination</Text>
+            </View>
+          )}
+          
+          <View style={styles.ratingBadge}>
+            <Star size={16} color="#fbbf24" fill="#fbbf24" />
+            <Text style={styles.ratingBadgeText}>4.9</Text>
+          </View>
+        </View>
+
+        <View style={[styles.mainCard, { transform: [{ rotate: '-1deg' }] }]}>
+          <Text style={styles.title}>{path.title}</Text>
+          
+          <View style={styles.authorContainer}>
+            <Text style={styles.authorIcon}>✈️</Text>
+            <Text style={styles.authorText}>By TravelQuest</Text>
+          </View>
+
+          <View style={styles.infoBadgesContainer}>
+            <View style={styles.infoBadge}>
+              <Clock size={18} color="#f59e0b" />
+              <Text style={styles.infoBadgeText}>{estimatedTime}</Text>
+            </View>
+            
+            <View style={styles.infoBadge}>
+              <MapPin size={18} color="#ec4899" />
+              <Text style={styles.infoBadgeText}>{estimatedDistance}</Text>
+            </View>
+            
+            <View style={[styles.infoBadge, { backgroundColor: categoryStyle.bg }]}>
+              <Users size={18} color={categoryStyle.icon} />
+              <Text style={[styles.infoBadgeText, { color: categoryStyle.text }]}>
+                {path.difficulty}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.practicalInfoCard, { transform: [{ rotate: '1deg' }], marginTop: 10}]}>
+          <View style={styles.practicalInfoHeader}>
+            <Text style={styles.practicalInfoIcon}>📋</Text>
+            <Text style={styles.practicalInfoTitle}>Informations pratiques</Text>
+          </View>
+          
+          <Text style={styles.description}>
+            {path.description || "Explorez la ville à travers ce parcours unique. Découvrez des lieux cachés et résolvez des énigmes passionnantes !"}
+          </Text>
+        </View>
+
+        <View style={{ height: 20 }} />
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <TouchableOpacity 
+          style={styles.startBtn}
+          onPress={handleStartTrip}
+          activeOpacity={0.9}
+        >
+          <Text style={styles.startBtnIcon}>🚀</Text>
+          <Text style={styles.startBtnText}>Commencer l'aventure</Text>
+        </TouchableOpacity>
+      </View>
+
+      <BottomNav navigation={navigation} activeRoute="PathDetail" currentPathId={id} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f8f9fa',
+  },
+  
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa'
+  },
+  
+  header: { 
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+  },
+  
+  headerBtn: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+
+  content: { 
+    paddingTop: 120,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+
+  imageCard: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  
+  imagePlaceholder: {
+    width: '100%',
+    height: 200,
+    backgroundColor: '#f97316',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  
+  imagePlaceholderText: {
+    fontSize: 50,
+    marginBottom: 8,
+  },
+  
+  imagePlaceholderSubtext: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  
+  ratingBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  
+  ratingBadgeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+
+  mainCard: {
+    backgroundColor: '#fff',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  
+  title: { 
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 10,
+    letterSpacing: -0.5,
+  },
+  
+  authorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 6,
+  },
+  
+  authorIcon: {
+    fontSize: 14,
+  },
+  
+  authorText: {
+    fontSize: 14,
+    color: '#f97316',
+    fontWeight: '600',
+  },
+  
+  infoBadgesContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  
+  infoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    gap: 6,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  
+  infoBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+
+  practicalInfoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  
+  practicalInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  
+  practicalInfoIcon: {
+    fontSize: 20,
+  },
+  
+  practicalInfoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#f97316',
+  },
+  
+  description: {
+    fontSize: 14,
+    color: '#64748b',
+    lineHeight: 21,
+  },
+
+  footer: { 
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 120,
+    backgroundColor: 'transparent',
+  },
+  
+  startBtn: { 
+    backgroundColor: '#f97316',
+    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    shadowColor: '#10b981',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  
+  startBtnIcon: {
+    fontSize: 20,
+  },
+  
+  startBtnText: { 
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});
