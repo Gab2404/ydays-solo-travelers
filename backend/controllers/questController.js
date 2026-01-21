@@ -1,5 +1,6 @@
 const Quest = require('../models/Quest');
 const Path = require('../models/Path');
+const User = require('../models/User');
 const { validateQuestData } = require('../utils/validation');
 
 // @desc    Récupérer les quêtes d'un parcours
@@ -110,9 +111,122 @@ const deleteQuest = async (req, res) => {
   }
 };
 
+// @desc    Valider une quête avec une photo
+// @route   POST /api/quests/:id/validate
+// @access  Private
+const validateQuest = async (req, res) => {
+  try {
+    const questId = req.params.id;
+    const userId = req.user.id;
+
+    // Vérifier que la photo a été uploadée
+    if (!req.file) {
+      return res.status(400).json({ message: 'Aucune photo fournie' });
+    }
+
+    // Récupérer la quête
+    const quest = await Quest.findById(questId);
+    if (!quest) {
+      return res.status(404).json({ message: 'Quête introuvable' });
+    }
+
+    // Récupérer l'utilisateur pour vérification
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur introuvable' });
+    }
+
+    // Vérifier si la quête n'est pas déjà complétée
+    if (user.hasCompletedQuest && user.hasCompletedQuest(questId)) {
+      return res.status(400).json({ message: 'Quête déjà complétée' });
+    }
+
+    // Construire l'URL de la photo
+    const photoUrl = `/uploads/quests/${req.file.filename}`;
+
+    // XP de base pour la quête
+    const XP_PER_QUEST = 100;
+    let totalXpGained = XP_PER_QUEST;
+
+    // Vérifier si toutes les quêtes du parcours seront complétées après celle-ci
+    const path = await Path.findById(quest.pathId).populate('quests');
+    
+    // Calculer les quêtes complétées (incluant celle-ci)
+    const completedQuestsIds = user.completedQuests 
+      ? user.completedQuests.map(cq => cq.questId.toString()) 
+      : [];
+    completedQuestsIds.push(questId.toString());
+
+    const allQuestsCompleted = path.quests.every(q => 
+      completedQuestsIds.includes(q._id.toString())
+    );
+
+    const hasCompletedPath = user.hasCompletedPath ? 
+      user.hasCompletedPath(path._id) : 
+      user.completedPaths?.some(cp => {
+        // Support ancien format (ObjectId direct) et nouveau format (objet avec pathId)
+        const pathIdToCheck = cp.pathId ? cp.pathId.toString() : cp.toString();
+        return pathIdToCheck === path._id.toString();
+      });
+
+    let pathCompletionBonus = 0;
+    const updateData = {
+      $push: { 
+        completedQuests: {
+          questId: questId,
+          photoUrl: photoUrl,
+          completedAt: new Date()
+        }
+      },
+      $inc: { xp: XP_PER_QUEST }
+    };
+
+    // Si toutes les quêtes sont complétées et que le parcours n'était pas déjà complété
+    if (allQuestsCompleted && !hasCompletedPath) {
+      const PATH_COMPLETION_BONUS = 500;
+      pathCompletionBonus = PATH_COMPLETION_BONUS;
+      totalXpGained += PATH_COMPLETION_BONUS;
+      
+      updateData.$inc.xp += PATH_COMPLETION_BONUS;
+      updateData.$push.completedPaths = {
+        pathId: path._id,
+        completedAt: new Date()
+      };
+    }
+
+    // Calculer le nouveau niveau basé sur le nouvel XP
+    const newXp = (user.xp || 0) + totalXpGained;
+    const newLevel = Math.floor(newXp / 1000) + 1; // Formule simple : 1 niveau tous les 1000 XP
+
+    updateData.$set = { level: newLevel };
+
+    // SOLUTION ALTERNATIVE : Mise à jour directe sans charger tout le document
+    await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { runValidators: false, new: true }
+    );
+
+    res.status(200).json({
+      message: 'Quête validée avec succès !',
+      xpGained: totalXpGained,
+      totalXp: newXp,
+      level: newLevel,
+      photoUrl: photoUrl,
+      pathCompleted: allQuestsCompleted && pathCompletionBonus > 0
+    });
+
+  } catch (err) {
+    console.error('Erreur validation quête:', err);
+    res.status(500).json({ message: 'Erreur lors de la validation de la quête' });
+  }
+};
+
+// EXPORT UNIQUE - NE PAS DUPLIQUER
 module.exports = {
   getQuestsByPath,
   createQuest,
   updateQuest,
-  deleteQuest
+  deleteQuest,
+  validateQuest
 };

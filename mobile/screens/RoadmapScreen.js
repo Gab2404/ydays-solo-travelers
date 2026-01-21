@@ -1,30 +1,39 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useContext } from 'react';
 import { 
   View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, 
-  ScrollView, Dimensions, Animated 
+  ScrollView, Dimensions, Animated, Alert 
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { CheckCircle, MapPin, ChevronRight, X, Clock } from 'lucide-react-native';
+import { CheckCircle, MapPin, ChevronRight, X, Clock, Camera, Award, Image as ImageIcon } from 'lucide-react-native';
 import pathService from '../services/pathService';
+import questService from '../services/questService';
+import userService from '../services/userService';
 import errorHandler from '../utils/errorHandler';
 import BottomNav from '../components/BottomNav';
+import CameraCapture from '../components/CameraCapture';
+import { AuthContext } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 const PANEL_WIDTH = width * 0.75;
 
 export default function RoadmapScreen({ route, navigation }) {
   const { id } = route.params;
+  const { user: authUser } = useContext(AuthContext);
   const [path, setPath] = useState(null);
   const [selectedQuestId, setSelectedQuestId] = useState(null);
   const [completedQuests, setCompletedQuests] = useState([]);
   const [inProgressQuests, setInProgressQuests] = useState([]);
+  const [isPathCompleted, setIsPathCompleted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCameraVisible, setIsCameraVisible] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   
   const scrollViewRef = useRef(null);
   const slideAnim = useRef(new Animated.Value(PANEL_WIDTH)).current;
 
   useEffect(() => {
     fetchPath();
+    checkUserProgress();
   }, [id]);
 
   const fetchPath = async () => {
@@ -37,6 +46,26 @@ export default function RoadmapScreen({ route, navigation }) {
       navigation.goBack();
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const checkUserProgress = async () => {
+    try {
+      // Récupérer le profil utilisateur pour voir la progression
+      const userData = await userService.getCurrentUser();
+      
+      // Extraire les IDs des quêtes complétées
+      const completedQuestIds = userData.completedQuests?.map(cq => cq.questId) || [];
+      setCompletedQuests(completedQuestIds);
+      
+      // Vérifier si le parcours est complété
+      const pathCompleted = userData.completedPaths?.some(cp => {
+        const pathIdToCheck = cp.pathId ? cp.pathId : cp;
+        return pathIdToCheck.toString() === id;
+      });
+      setIsPathCompleted(pathCompleted || false);
+    } catch (error) {
+      console.error('Erreur récupération progression:', error);
     }
   };
 
@@ -95,10 +124,54 @@ export default function RoadmapScreen({ route, navigation }) {
     }
   };
 
-  const handleValidateStep = () => {
+  const handleOpenCamera = () => {
     if (selectedQuestId && !completedQuests.includes(selectedQuestId)) {
+      setIsCameraVisible(true);
+    }
+  };
+
+  const handlePhotoTaken = async (photoData) => {
+    try {
+      setIsCameraVisible(false);
+      setIsValidating(true);
+
+      const result = await questService.validateQuest(selectedQuestId, photoData);
+
+      // Ajouter aux quêtes complétées
       setCompletedQuests([...completedQuests, selectedQuestId]);
-      errorHandler.showSuccess('Bravo ! 🎉 Étape validée !');
+      
+      // Vérifier si le parcours est maintenant complété
+      if (result.pathCompleted) {
+        setIsPathCompleted(true);
+        
+        Alert.alert(
+          '🎉 Parcours Terminé !',
+          `Félicitations ! Tu as complété "${path.title}" et gagné ${result.xpGained} XP bonus !`,
+          [
+            { 
+              text: 'Voir ma galerie', 
+              onPress: () => navigation.navigate('Gallery', { pathId: id })
+            },
+            { text: 'Super !', style: 'default' }
+          ]
+        );
+      } else {
+        Alert.alert(
+          '✅ Étape validée !',
+          `+${result.xpGained} XP ! Continue ton aventure.`,
+          [{ text: 'Super !', style: 'default' }]
+        );
+      }
+
+    } catch (error) {
+      console.error('Erreur validation:', error);
+      Alert.alert(
+        'Erreur',
+        error.message || 'Impossible de valider la quête. Réessaye.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsValidating(false);
     }
   };
 
@@ -121,6 +194,10 @@ export default function RoadmapScreen({ route, navigation }) {
     });
   };
 
+  const handleViewGallery = () => {
+    navigation.navigate('Gallery', { pathId: id });
+  };
+
   const selectedQuest = path.quests.find(q => q._id === selectedQuestId);
   const questNumber = selectedQuest ? reversedQuests.length - reversedQuests.findIndex(q => q._id === selectedQuestId) : 0;
   const totalQuests = path.quests.length;
@@ -133,14 +210,32 @@ export default function RoadmapScreen({ route, navigation }) {
   return (
     <View style={styles.container}>
       
-      <View style={styles.fixedHeader}>
+      {/* Badge Parcours Complété */}
+      {isPathCompleted && (
+        <TouchableOpacity 
+          style={styles.completedPathBanner}
+          onPress={handleViewGallery}
+          activeOpacity={0.9}
+        >
+          <Award size={20} color="#fff" />
+          <Text style={styles.completedPathBannerText}>
+            Parcours terminé ! Voir ma galerie
+          </Text>
+          <ImageIcon size={18} color="#fff" />
+        </TouchableOpacity>
+      )}
+
+      <View style={[styles.fixedHeader, isPathCompleted && { top: 60 }]}>
         <Text style={styles.city}>{path.city}</Text>
         <Text style={styles.pathTitle} numberOfLines={1}>{path.title}</Text>
       </View>
 
       <ScrollView 
         ref={scrollViewRef}
-        contentContainerStyle={styles.roadmapContainer} 
+        contentContainerStyle={[
+          styles.roadmapContainer,
+          isPathCompleted && { paddingTop: 190 }
+        ]} 
         showsVerticalScrollIndicator={false}
         bounces={false}
         onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
@@ -280,9 +375,23 @@ export default function RoadmapScreen({ route, navigation }) {
             )}
             
             {isQuestInProgress && !isQuestCompleted && (
-              <TouchableOpacity style={styles.actionButton} onPress={handleValidateStep}>
-                <Text style={styles.actionButtonText}>Valider cette étape</Text>
-                <ChevronRight size={20} color="#fff" />
+              <TouchableOpacity 
+                style={[styles.actionButton, isValidating && styles.actionButtonDisabled]} 
+                onPress={handleOpenCamera}
+                disabled={isValidating}
+              >
+                {isValidating ? (
+                  <>
+                    <ActivityIndicator size="small" color="#fff" />
+                    <Text style={styles.actionButtonText}>Validation...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Camera size={20} color="#fff" />
+                    <Text style={styles.actionButtonText}>Prendre une photo</Text>
+                    <ChevronRight size={20} color="#fff" />
+                  </>
+                )}
               </TouchableOpacity>
             )}
             
@@ -295,6 +404,13 @@ export default function RoadmapScreen({ route, navigation }) {
           </View>
         </Animated.View>
       )}
+
+      <CameraCapture
+        visible={isCameraVisible}
+        onClose={() => setIsCameraVisible(false)}
+        onPhotoTaken={handlePhotoTaken}
+        questTitle={selectedQuest?.title || ''}
+      />
 
       <BottomNav navigation={navigation} activeRoute="Roadmap" currentPathId={id} />
     </View>
@@ -309,6 +425,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f8fafc'
+  },
+
+  completedPathBanner: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#22c55e',
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    paddingTop: 55,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    zIndex: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 10
+  },
+
+  completedPathBannerText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700'
   },
   
   fixedHeader: { 
@@ -528,6 +671,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
+  },
+  
+  actionButtonDisabled: {
+    opacity: 0.6,
   },
   
   actionButtonText: {

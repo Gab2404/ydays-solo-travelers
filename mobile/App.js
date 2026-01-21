@@ -15,6 +15,8 @@ import RoadmapScreen from './screens/RoadmapScreen';
 import MapScreen from './screens/MapScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import AdminPanelScreen from './screens/AdminPanelScreen';
+import GalleryScreen from './screens/GalleryScreen';
+
 
 const Stack = createNativeStackNavigator();
 
@@ -55,6 +57,7 @@ function AppNavigator() {
           <Stack.Screen name="Roadmap" component={RoadmapScreen} />
           <Stack.Screen name="Map" component={MapScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="Gallery" component={GalleryScreen} />
           {isAdmin && (
             <Stack.Screen name="AdminPanel" component={AdminPanelScreen} />
           )}

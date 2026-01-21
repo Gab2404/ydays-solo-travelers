@@ -30,3 +30,14 @@
     cd backend
     npm install bcryptjs
     cp .env.example .env
+
+    cd m
+    npx expo install expo-camera expo-image-picker expo-file-system
+    npm install expo-file-system expo-sharing
+    npm install @react-native-async-storage/async-storage expo-file-system expo-sharing
+    
+
+    cd b
+    npm install multer 
+    npm audit fix
+    npm install archiver

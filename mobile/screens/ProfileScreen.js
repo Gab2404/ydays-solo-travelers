@@ -11,6 +11,13 @@ import BottomNav from '../components/BottomNav';
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useContext(AuthContext);
   
+  if (!user) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
+        <Text>Chargement du profil...</Text>
+      </View>
+    );
+  }
   const handleLogout = async () => {
     errorHandler.showConfirmation(
       'Déconnexion',
@@ -73,11 +80,11 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
             <Text style={styles.avatarText}>
-              {user.firstname[0]}{user.lastname[0]}
+              {user?.firstName?.[0] || '?'}{user?.lastName?.[0] || ''}
             </Text>
           </View>
-          <Text style={styles.userName}>{user.firstname} {user.lastname}</Text>
-          <Text style={styles.userEmail}>{user.email}</Text>
+          <Text style={styles.userName}>{user?.firstName} {user?.lastName}</Text>
+          <Text style={styles.userHandle}>@{user?.userName || 'voyageur'}</Text>
           <View style={styles.roleBadge}>
             <Text style={styles.userRole}>
               {user.role === 'admin' ? 'Game Master' : 'Explorateur'}

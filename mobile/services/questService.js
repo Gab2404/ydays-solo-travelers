@@ -19,6 +19,38 @@ const questService = {
   },
 
   /**
+   * Valide une quête avec une photo
+   * @param {String} questId - ID de la quête
+   * @param {Object} photoData - Données de la photo (uri, base64)
+   * @returns {Promise} Résultat de la validation
+   */
+  validateQuest: async (questId, photoData) => {
+    try {
+      // Créer un FormData pour envoyer la photo
+      const formData = new FormData();
+      
+      // Ajouter la photo au FormData
+      formData.append('photo', {
+        uri: photoData.uri,
+        type: 'image/jpeg',
+        name: `quest_${questId}_${Date.now()}.jpg`,
+      });
+
+      // Envoyer la requête avec le bon Content-Type
+      const response = await api.post(`/quests/${questId}/validate`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Erreur dans validateQuest:', error);
+      throw error.response?.data || error;
+    }
+  },
+
+  /**
    * Crée une nouvelle quête (Admin uniquement)
    * @param {Object} questData - Données de la quête
    * @returns {Promise} Quête créée

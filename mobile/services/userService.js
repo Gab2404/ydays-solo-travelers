@@ -6,7 +6,7 @@ import api from '../utils/api';
 const userService = {
   /**
    * Récupère le profil de l'utilisateur connecté
-   * @returns {Promise} Profil utilisateur
+   * (ancienne méthode – conservée)
    */
   getUserProfile: async () => {
     try {
@@ -18,9 +18,21 @@ const userService = {
   },
 
   /**
+   * Récupère le profil de l'utilisateur connecté
+   * (nouvelle méthode – alias plus clair)
+   */
+  getCurrentUser: async () => {
+    try {
+      const response = await api.get('/users/profile');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  /**
    * Met à jour le profil de l'utilisateur
-   * @param {Object} userData - Nouvelles données utilisateur
-   * @returns {Promise} Profil mis à jour
+   * (ancienne méthode – conservée)
    */
   updateUserProfile: async (userData) => {
     try {
@@ -32,9 +44,21 @@ const userService = {
   },
 
   /**
+   * Met à jour le profil utilisateur
+   * (nouvelle méthode – alias)
+   */
+  updateProfile: async (userData) => {
+    try {
+      const response = await api.put('/users/profile', userData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  /**
    * Marque une quête comme complétée
-   * @param {String} questId - ID de la quête
-   * @returns {Promise} Résultat de la validation
+   * (conservée)
    */
   completeQuest: async (questId) => {
     try {
@@ -47,11 +71,24 @@ const userService = {
 
   /**
    * Récupère l'historique des parcours de l'utilisateur
-   * @returns {Promise} Historique et statistiques
+   * (conservée)
    */
   getUserHistory: async () => {
     try {
       const response = await api.get('/users/history');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  /**
+   * Récupère les statistiques de l'utilisateur
+   * (nouvelle méthode)
+   */
+  getUserStats: async () => {
+    try {
+      const response = await api.get('/users/stats');
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

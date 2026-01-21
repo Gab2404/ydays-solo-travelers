@@ -2,9 +2,6 @@ const User = require('../models/User');
 const Quest = require('../models/Quest');
 const Path = require('../models/Path');
 
-// @desc    Récupérer le profil utilisateur
-// @route   GET /api/users/profile
-// @access  Private
 const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
@@ -22,9 +19,6 @@ const getUserProfile = async (req, res) => {
   }
 };
 
-// @desc    Mettre à jour le profil utilisateur
-// @route   PUT /api/users/profile
-// @access  Private
 const updateUserProfile = async (req, res) => {
   try {
     const { firstname, lastname, age, nationality, sex, phone } = req.body;
@@ -61,14 +55,10 @@ const updateUserProfile = async (req, res) => {
   }
 };
 
-// @desc    Marquer une quête comme complétée
-// @route   POST /api/users/complete-quest/:questId
-// @access  Private
 const completeQuest = async (req, res) => {
   try {
     const { questId } = req.params;
 
-    // Vérifier que la quête existe
     const quest = await Quest.findById(questId);
     if (!quest) {
       return res.status(404).json({ message: 'Quête introuvable' });
@@ -76,12 +66,10 @@ const completeQuest = async (req, res) => {
 
     const user = await User.findById(req.user._id);
 
-    // Vérifier si la quête n'est pas déjà complétée
     if (user.completedQuests.includes(questId)) {
       return res.status(400).json({ message: 'Quête déjà complétée' });
     }
 
-    // Ajouter la quête aux complétées
     user.completedQuests.push(questId);
     await user.save();
 
@@ -95,9 +83,6 @@ const completeQuest = async (req, res) => {
   }
 };
 
-// @desc    Récupérer l'historique des parcours de l'utilisateur
-// @route   GET /api/users/history
-// @access  Private
 const getUserHistory = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).populate({
@@ -109,7 +94,6 @@ const getUserHistory = async (req, res) => {
       return res.status(404).json({ message: 'Utilisateur introuvable' });
     }
 
-    // Grouper les quêtes par parcours
     const pathsMap = {};
     
     user.completedQuests.forEach(quest => {
@@ -135,7 +119,7 @@ const getUserHistory = async (req, res) => {
     const history = Object.values(pathsMap);
 
     res.status(200).json({
-      totalXP: user.completedQuests.length * 50, // 50 XP par quête
+      totalXP: user.completedQuests.length * 50,
       completedPaths: history.filter(h => h.percentage === 100).length,
       inProgressPaths: history.filter(h => h.percentage > 0 && h.percentage < 100).length,
       history

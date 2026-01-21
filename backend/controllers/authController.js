@@ -4,14 +4,10 @@ const { generateToken } = require('../utils/tokenUtils');
 const { hashPassword, comparePassword } = require('../utils/passwordUtils');
 const { successResponse, errorResponse, formatUserResponse } = require('../utils/responseFormatter');
 
-// @desc    Inscription
-// @route   POST /api/auth/register
-// @access  Public
 const register = async (req, res) => {
   try {
-    const { email, password, lastname, firstname, age, nationality, sex, phone, role } = req.body;
+    const { email, password, lastname, firstname, age, nationality, sex, phone, role, username } = req.body;
 
-    // Validations
     if (!email || !password || !lastname || !firstname) {
       return errorResponse(res, 400, 'Tous les champs obligatoires doivent être remplis');
     }
@@ -28,34 +24,27 @@ const register = async (req, res) => {
       return errorResponse(res, 400, 'Numéro de téléphone invalide');
     }
 
-    // Vérifier si l'utilisateur existe déjà
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return errorResponse(res, 400, 'Email déjà utilisé');
     }
 
-    // Hasher le mot de passe
     const hashedPassword = await hashPassword(password);
 
-    // Créer l'utilisateur
     const newUser = new User({
       email,
       password: hashedPassword,
-      lastname,
-      firstname,
+      lastName: lastname,  
+      firstName: firstname, 
       age,
-      nationality,
-      sex,
-      phone,
-      role: role || 'joueur'
+      username: username || email.split('@')[0] + Math.floor(Math.random() * 1000),
+      role: role === 'joueur' ? 'user' : role
     });
 
     const savedUser = await newUser.save();
 
-    // Générer le token
     const token = generateToken(savedUser._id);
 
-    // Formatter et envoyer la réponse
     return successResponse(
       res, 
       201, 
@@ -68,9 +57,6 @@ const register = async (req, res) => {
   }
 };
 
-// @desc    Connexion
-// @route   POST /api/auth/login
-// @access  Public
 const login = async (req, res) => {
   try {
     const { login, password } = req.body;
@@ -79,7 +65,6 @@ const login = async (req, res) => {
       return errorResponse(res, 400, 'Veuillez fournir un email/téléphone et un mot de passe');
     }
 
-    // Rechercher par email ou téléphone
     const user = await User.findOne({
       $or: [{ email: login }, { phone: login }]
     });
@@ -88,17 +73,14 @@ const login = async (req, res) => {
       return errorResponse(res, 404, 'Utilisateur introuvable');
     }
 
-    // Vérifier le mot de passe
     const isPasswordValid = await comparePassword(password, user.password);
     
     if (!isPasswordValid) {
       return errorResponse(res, 400, 'Mot de passe incorrect');
     }
 
-    // Générer le token
     const token = generateToken(user._id);
 
-    // Formatter et envoyer la réponse
     return successResponse(
       res, 
       200, 
@@ -111,9 +93,6 @@ const login = async (req, res) => {
   }
 };
 
-// @desc    Obtenir l'utilisateur connecté
-// @route   GET /api/auth/me
-// @access  Private
 const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
