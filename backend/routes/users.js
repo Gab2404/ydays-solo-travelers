@@ -21,5 +21,6 @@ const upload = multer({ storage });
 router.get('/profile', protect, userController.getUserProfile);
 // On ajoute le middleware upload.single('avatar') ici
 router.put('/profile', protect, upload.single('avatar'), userController.updateUserProfile);
+router.get('/history', protect, userController.getUserHistory);
 
 module.exports = router;

@@ -1,24 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ActivityIndicator, TouchableOpacity,
-  ScrollView, Image, Dimensions, Alert
+  ScrollView, Image, Dimensions, Alert, Modal, Pressable // Ajout de Modal et Pressable
 } from 'react-native';
-import { ArrowLeft, Download, Calendar, MapPin } from 'lucide-react-native';
+import { ArrowLeft, Download, Calendar, MapPin, X } from 'lucide-react-native'; // Ajout de X pour fermer
 import galleryService from '../services/galleryService';
 import errorHandler from '../utils/errorHandler';
 import BottomNav from '../components/BottomNav';
-import api from '../utils/api'; // Nécessaire pour reconstruire les URLs d'affichage
+import api from '../utils/api';
 
-const { width } = Dimensions.get('window');
-const PHOTO_SIZE = (width - 48) / 2; // 2 colonnes avec espacement
+const { width, height } = Dimensions.get('window'); // Récupération de la hauteur pour le plein écran
+const PHOTO_SIZE = (width - 48) / 2;
 
 export default function GalleryScreen({ route, navigation }) {
   const { pathId } = route.params;
   const [gallery, setGallery] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
+  
+  // Nouvel état pour la photo en grand écran
+  const [selectedFullScreenPhoto, setSelectedFullScreenPhoto] = useState(null);
 
-  // On récupère l'URL de base du serveur (sans le /api) pour l'affichage des images
   const serverURL = api.defaults.baseURL.replace(/\/api$/, '');
 
   useEffect(() => {
@@ -51,7 +53,6 @@ export default function GalleryScreen({ route, navigation }) {
           onPress: async () => {
             try {
               setIsDownloading(true);
-              // Appel au service de sauvegarde groupée corrigé
               await galleryService.saveAllPhotosToLibrary(gallery.photos);
               Alert.alert('✅ Succès', 'Toutes les photos sont dans votre album !');
             } catch (error) {
@@ -86,7 +87,32 @@ export default function GalleryScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Modal pour le Plein Écran */}
+      <Modal
+        visible={!!selectedFullScreenPhoto}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSelectedFullScreenPhoto(null)}
+      >
+        <Pressable 
+          style={styles.modalBackground} 
+          onPress={() => setSelectedFullScreenPhoto(null)}
+        >
+          <TouchableOpacity 
+            style={styles.closeModalButton} 
+            onPress={() => setSelectedFullScreenPhoto(null)}
+          >
+            <X size={30} color="#fff" />
+          </TouchableOpacity>
+          
+          <Image
+            source={{ uri: selectedFullScreenPhoto }}
+            style={styles.fullScreenImage}
+            resizeMode="contain"
+          />
+        </Pressable>
+      </Modal>
+
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -106,7 +132,6 @@ export default function GalleryScreen({ route, navigation }) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Info Card */}
         <View style={styles.infoCard}>
           <View style={styles.congratsContainer}>
             <Text style={styles.congratsEmoji}>🎉</Text>
@@ -143,22 +168,16 @@ export default function GalleryScreen({ route, navigation }) {
             disabled={isDownloading}
           >
             {isDownloading ? (
-              <>
-                <ActivityIndicator size="small" color="#fff" />
-                <Text style={styles.downloadButtonText}>Enregistrement...</Text>
-              </>
+              <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <>
-                <Download size={20} color="#fff" />
-                <Text style={styles.downloadButtonText}>
-                  Enregistrer dans mes photos
-                </Text>
-              </>
+              <Download size={20} color="#fff" />
             )}
+            <Text style={styles.downloadButtonText}>
+              {isDownloading ? 'Enregistrement...' : 'Enregistrer dans mes photos'}
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Photos Grid */}
         <View style={styles.photosSection}>
           <Text style={styles.photosSectionTitle}>
             Mes souvenirs ({gallery.photos.length})
@@ -166,13 +185,16 @@ export default function GalleryScreen({ route, navigation }) {
 
           <View style={styles.photosGrid}>
             {gallery.photos.map((photo, index) => {
-              // On reconstruit l'URL correcte pour l'affichage (sans le /api)
               const imgUri = photo.photoUrl.startsWith('http') 
                 ? photo.photoUrl 
                 : `${serverURL}${photo.photoUrl.startsWith('/') ? '' : '/'}${photo.photoUrl}`;
 
               return (
-                <View key={photo.questId} style={styles.photoCard}>
+                <TouchableOpacity 
+                  key={photo.questId} 
+                  style={styles.photoCard}
+                  onPress={() => setSelectedFullScreenPhoto(imgUri)} // Clic pour agrandir
+                >
                   <Image
                     source={{ uri: imgUri }}
                     style={styles.photoImage}
@@ -185,19 +207,12 @@ export default function GalleryScreen({ route, navigation }) {
                     <Text style={styles.photoTitle} numberOfLines={2}>
                       {photo.questTitle}
                     </Text>
-                    <Text style={styles.photoDate}>
-                      {new Date(photo.completedAt).toLocaleDateString('fr-FR', {
-                        day: 'numeric',
-                        month: 'short'
-                      })}
-                    </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
         </View>
-
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -207,6 +222,7 @@ export default function GalleryScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+  // ... Vos styles existants ...
   container: { flex: 1, backgroundColor: '#f8f9fa' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f9fa' },
   header: { paddingTop: 50, paddingHorizontal: 20, paddingBottom: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -238,5 +254,23 @@ const styles = StyleSheet.create({
   photoNumber: { color: '#fff', fontSize: 12, fontWeight: '700' },
   photoInfo: { padding: 12 },
   photoTitle: { fontSize: 13, fontWeight: '600', color: '#1e293b', marginBottom: 4 },
-  photoDate: { fontSize: 11, color: '#9ca3af', fontWeight: '500' }
+
+  // Nouveaux styles pour la Modal Plein Écran
+  modalBackground: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenImage: {
+    width: width,
+    height: height,
+  },
+  closeModalButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    padding: 10,
+  }
 });

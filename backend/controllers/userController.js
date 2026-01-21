@@ -80,27 +80,33 @@ const completeQuest = async (req, res) => {
 
 const getUserHistory = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate({
-      path: 'completedQuests',
-      populate: { path: 'pathId' }
-    });
+    // On peuple à la fois les quêtes et les parcours terminés
+    const user = await User.findById(req.user._id)
+      .populate({
+        path: 'completedQuests.questId',
+        populate: { path: 'pathId' }
+      })
+      .populate('completedPaths.pathId');
 
     if (!user) {
       return res.status(404).json({ message: 'Utilisateur introuvable' });
     }
 
     const pathsMap = {};
-    
-    user.completedQuests.forEach(quest => {
-      if (quest.pathId) {
+
+    // 1. On traite les quêtes pour voir les parcours "En cours"
+    user.completedQuests.forEach(cq => {
+      const quest = cq.questId;
+      if (quest && quest.pathId) {
         const pathId = quest.pathId._id.toString();
         
         if (!pathsMap[pathId]) {
           pathsMap[pathId] = {
             path: quest.pathId,
             completedQuestsCount: 0,
-            totalQuests: quest.pathId.quests.length,
-            percentage: 0
+            totalQuests: quest.pathId.quests?.length || 0,
+            percentage: 0,
+            completedAt: cq.completedAt
           };
         }
         
@@ -111,13 +117,27 @@ const getUserHistory = async (req, res) => {
       }
     });
 
+    // 2. On s'assure que les parcours marqués comme "Complétés" sont bien à 100%
+    user.completedPaths.forEach(cp => {
+      if (cp.pathId) {
+        const pathId = cp.pathId._id.toString();
+        if (pathsMap[pathId]) {
+          pathsMap[pathId].percentage = 100;
+          pathsMap[pathId].completedAt = cp.completedAt;
+        } else {
+          pathsMap[pathId] = {
+            path: cp.pathId,
+            percentage: 100,
+            completedAt: cp.completedAt
+          };
+        }
+      }
+    });
+
     const history = Object.values(pathsMap);
 
     res.status(200).json({
-      totalXP: user.completedQuests.length * 50,
-      completedPaths: history.filter(h => h.percentage === 100).length,
-      inProgressPaths: history.filter(h => h.percentage > 0 && h.percentage < 100).length,
-      history
+      history: history.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
     });
   } catch (err) {
     console.error(err);
