@@ -38,6 +38,7 @@
 
     npx expo install expo-media-library
     npx expo install expo-image-picker
+    npm install react-native-maps-directions
 
 
     cd b
