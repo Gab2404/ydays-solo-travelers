@@ -47,9 +47,13 @@ const userService = {
    * Met à jour le profil utilisateur
    * (nouvelle méthode – alias)
    */
-  updateProfile: async (userData) => {
+  updateProfile: async (formData) => {
     try {
-      const response = await api.put('/users/profile', userData);
+      const response = await api.put('/users/profile', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data', // Indispensable pour l'image
+        },
+      });
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

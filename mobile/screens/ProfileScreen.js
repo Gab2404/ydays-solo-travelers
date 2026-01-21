@@ -1,123 +1,103 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { 
   View, Text, StyleSheet, TouchableOpacity, 
-  ScrollView, FlatList 
+  ScrollView, Image, ActivityIndicator, Alert 
 } from 'react-native';
-import { LogOut, MapPin, Award } from 'lucide-react-native';
+import { LogOut, Camera, User as UserIcon } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '../context/AuthContext';
+import userService from '../services/userService';
 import errorHandler from '../utils/errorHandler';
 import BottomNav from '../components/BottomNav';
+import api from '../utils/api';
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout, updateUser } = useContext(AuthContext);
+  const [loading, setLoading] = useState(false);
   
-  if (!user) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
-        <Text>Chargement du profil...</Text>
-      </View>
-    );
-  }
-  const handleLogout = async () => {
-    errorHandler.showConfirmation(
-      'Déconnexion',
-      'Êtes-vous sûr de vouloir vous déconnecter ?',
-      async () => {
-        await logout();
-      }
-    );
+  const serverURL = api.defaults.baseURL.replace(/\/api$/, '');
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert("Permission refusée", "Nous avons besoin d'accéder à vos photos.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      handleUpload(result.assets[0]);
+    }
   };
 
-  // Données fictives pour l'exemple (à remplacer par userService.getUserHistory())
-  const historyData = [
-    { id: '1', title: 'Secrets de Bordeaux', date: '12 Oct.', xp: 450, status: 'Complété' },
-    { id: '2', title: 'Paris Historique', date: '05 Nov.', xp: 300, status: 'En cours' },
-    { id: '3', title: 'Street Art Lyon', date: '20 Nov.', xp: 600, status: 'Complété' },
-  ];
+  const handleUpload = async (asset) => {
+    try {
+      setLoading(true);
+      const formData = new FormData();
+      formData.append('avatar', {
+        uri: asset.uri,
+        name: `avatar_${user._id}.jpg`,
+        type: 'image/jpeg',
+      });
 
-  const renderHistoryItem = ({ item }) => (
-    <View style={styles.historyCard}>
-      <View style={styles.historyIconBg}>
-        <MapPin size={20} color="#d97706" />
-      </View>
-      <View style={styles.historyContent}>
-        <Text style={styles.historyTitle}>{item.title}</Text>
-        <Text style={styles.historyDate}>{item.date}</Text>
-      </View>
-      <View style={styles.historyRight}>
-        <View style={styles.xpBadge}>
-          <Text style={styles.xpText}>+{item.xp} XP</Text>
-        </View>
-        <Text style={[
-          styles.statusText, 
-          item.status === 'En cours' ? styles.statusOngoing : styles.statusCompleted
-        ]}>
-          {item.status}
-        </Text>
-      </View>
-    </View>
-  );
+      // On utilise updateUserProfile du service existant
+      const updatedData = await userService.updateProfile(formData);
+      updateUser(updatedData); // Met à jour le contexte global
+      Alert.alert("Succès", "Photo de profil mise à jour !");
+    } catch (err) {
+      errorHandler.handle(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!user) return null;
 
   return (
     <View style={styles.container}>
-      
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => navigation.goBack()} 
-          style={styles.backBtn}
-        >
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>Mon Profil</Text>
-        <View style={{width: 40}} />
       </View>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
-        contentContainerStyle={{paddingBottom: 100}}
-      >
-        
+      <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarText}>
-              {user?.firstName?.[0] || '?'}{user?.lastName?.[0] || ''}
-            </Text>
-          </View>
-          <Text style={styles.userName}>{user?.firstName} {user?.lastName}</Text>
-          <Text style={styles.userHandle}>@{user?.userName || 'voyageur'}</Text>
-          <View style={styles.roleBadge}>
-            <Text style={styles.userRole}>
-              {user.role === 'admin' ? 'Game Master' : 'Explorateur'}
-            </Text>
-          </View>
+          <TouchableOpacity onPress={pickImage} style={styles.avatarWrapper}>
+            <View style={styles.avatarContainer}>
+              {user.avatar ? (
+                <Image 
+                  source={{ uri: user.avatar.startsWith('http') ? user.avatar : `${serverURL}${user.avatar}` }} 
+                  style={styles.avatarImg} 
+                />
+              ) : (
+                <Text style={styles.avatarText}>
+                  {user?.firstName?.[0]}{user?.lastName?.[0]}
+                </Text>
+              )}
+              {loading && <ActivityIndicator style={styles.loader} color="#fff" />}
+            </View>
+            <View style={styles.cameraBadge}>
+              <Camera size={14} color="#fff" />
+            </View>
+          </TouchableOpacity>
+          
+          <Text style={styles.userName}>{user.firstName} {user.lastName}</Text>
+          <Text style={styles.userHandle}>@{user.username}</Text>
         </View>
 
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>2</Text>
-            <Text style={styles.statLabel}>Parcours</Text>
-          </View>
-          <View style={styles.statSeparator} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>750</Text>
-            <Text style={styles.statLabel}>XP Total</Text>
-          </View>
-          <View style={styles.statSeparator} />
-          <View style={styles.statItem}>
-            <Award size={24} color="#FFD700" />
-            <Text style={styles.statLabel}>Niveau 3</Text>
-          </View>
-        </View>
-        
-        <Text style={styles.sectionTitle}>Dernières aventures</Text>
-        <FlatList
-          data={historyData}
-          keyExtractor={item => item.id}
-          renderItem={renderHistoryItem}
-          scrollEnabled={false}
-        />
+        {/* SECTION STATS SUPPRIMÉE ICI */}
 
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+        <View style={styles.infoSection}>
+          <Text style={styles.sectionLabel}>Email</Text>
+          <Text style={styles.sectionValue}>{user.email}</Text>
+        </View>
+
+        <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
           <LogOut size={20} color="#ef4444" />
           <Text style={styles.logoutText}>Se déconnecter</Text>
         </TouchableOpacity>
@@ -129,193 +109,27 @@ export default function ProfileScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#f8fafc', 
-    paddingTop: 50, 
-    paddingHorizontal: 20 
-  },
-  
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: 20 
-  },
-  backBtn: { 
-    padding: 10, 
-    backgroundColor: '#fff', 
-    borderRadius: 12, 
-    elevation: 2 
-  },
-  backText: { 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    color: '#1e293b' 
-  },
-  headerTitle: { 
-    fontSize: 20, 
-    fontWeight: 'bold', 
-    color: '#1e293b' 
-  },
-
-  profileCard: { 
-    alignItems: 'center', 
-    backgroundColor: '#fff', 
-    borderRadius: 20, 
-    padding: 25, 
-    marginBottom: 20, 
-    elevation: 3, 
-    shadowColor: '#000', 
-    shadowOpacity: 0.05, 
-    shadowRadius: 10 
-  },
+  container: { flex: 1, backgroundColor: '#f8fafc', paddingTop: 60, paddingHorizontal: 20 },
+  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#1e293b', textAlign: 'center', marginBottom: 30 },
+  profileCard: { alignItems: 'center', marginBottom: 40 },
+  avatarWrapper: { position: 'relative' },
   avatarContainer: { 
-    width: 80, 
-    height: 80, 
-    borderRadius: 40, 
-    backgroundColor: '#1e293b', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginBottom: 15, 
-    borderWidth: 4, 
-    borderColor: '#f1f5f9' 
+    width: 110, height: 110, borderRadius: 55, backgroundColor: '#1e293b', 
+    justifyContent: 'center', alignItems: 'center', overflow: 'hidden',
+    borderWidth: 4, borderColor: '#fff' 
   },
-  avatarText: { 
-    color: '#fff', 
-    fontSize: 28, 
-    fontWeight: '900' 
+  avatarImg: { width: '100%', height: '100%' },
+  avatarText: { color: '#fff', fontSize: 35, fontWeight: 'bold' },
+  cameraBadge: { 
+    position: 'absolute', bottom: 5, right: 5, backgroundColor: '#d97706', 
+    padding: 8, borderRadius: 20, borderWidth: 2, borderColor: '#fff' 
   },
-  userName: { 
-    fontSize: 22, 
-    fontWeight: 'bold', 
-    color: '#1e293b' 
-  },
-  userEmail: { 
-    fontSize: 14, 
-    color: '#64748b', 
-    marginBottom: 15 
-  },
-  roleBadge: { 
-    backgroundColor: '#f1f5f9', 
-    paddingHorizontal: 12, 
-    paddingVertical: 6, 
-    borderRadius: 20 
-  },
-  userRole: { 
-    fontSize: 12, 
-    fontWeight: 'bold', 
-    color: '#475569', 
-    textTransform: 'uppercase' 
-  },
-
-  statsRow: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    backgroundColor: '#fff', 
-    padding: 20, 
-    borderRadius: 15, 
-    marginBottom: 30, 
-    elevation: 2 
-  },
-  statItem: { 
-    alignItems: 'center', 
-    flex: 1 
-  },
-  statValue: { 
-    fontSize: 20, 
-    fontWeight: '900', 
-    color: '#d97706' 
-  },
-  statLabel: { 
-    fontSize: 12, 
-    color: '#64748b', 
-    fontWeight: '600', 
-    marginTop: 2 
-  },
-  statSeparator: { 
-    width: 1, 
-    backgroundColor: '#e2e8f0', 
-    height: '80%', 
-    alignSelf: 'center' 
-  },
-
-  sectionTitle: { 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    color: '#1e293b', 
-    marginBottom: 15 
-  },
-  historyCard: { 
-    flexDirection: 'row', 
-    backgroundColor: '#fff', 
-    padding: 15, 
-    borderRadius: 15, 
-    marginBottom: 10, 
-    alignItems: 'center', 
-    elevation: 1 
-  },
-  historyIconBg: { 
-    width: 40, 
-    height: 40, 
-    backgroundColor: '#fff7ed', 
-    borderRadius: 12, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginRight: 15 
-  },
-  historyContent: { 
-    flex: 1 
-  },
-  historyTitle: { 
-    fontSize: 16, 
-    fontWeight: 'bold', 
-    color: '#1e293b' 
-  },
-  historyDate: { 
-    fontSize: 12, 
-    color: '#94a3b8' 
-  },
-  historyRight: { 
-    alignItems: 'flex-end' 
-  },
-  xpBadge: { 
-    backgroundColor: '#fef3c7', 
-    paddingHorizontal: 8, 
-    paddingVertical: 2, 
-    borderRadius: 6, 
-    marginBottom: 5 
-  },
-  xpText: { 
-    color: '#d97706', 
-    fontWeight: 'bold', 
-    fontSize: 10 
-  },
-  statusText: { 
-    fontSize: 10, 
-    fontWeight: 'bold', 
-    textTransform: 'uppercase' 
-  },
-  statusCompleted: { 
-    color: '#16a34a' 
-  },
-  statusOngoing: { 
-    color: '#0ea5e9' 
-  },
-
-  logoutBtn: { 
-    flexDirection: 'row', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    backgroundColor: '#fee2e2', 
-    paddingVertical: 15, 
-    borderRadius: 15, 
-    marginTop: 20 
-  },
-  logoutText: { 
-    color: '#ef4444', 
-    fontWeight: 'bold', 
-    marginLeft: 10, 
-    fontSize: 16 
-  },
+  loader: { position: 'absolute' },
+  userName: { fontSize: 22, fontWeight: 'bold', color: '#1e293b', marginTop: 15 },
+  userHandle: { fontSize: 16, color: '#64748b' },
+  infoSection: { backgroundColor: '#fff', padding: 20, borderRadius: 15, marginBottom: 20 },
+  sectionLabel: { fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 5 },
+  sectionValue: { fontSize: 16, color: '#1e293b', fontWeight: '500' },
+  logoutBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 15 },
+  logoutText: { color: '#ef4444', fontWeight: 'bold', marginLeft: 10 }
 });

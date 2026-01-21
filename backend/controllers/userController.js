@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Quest = require('../models/Quest');
 const Path = require('../models/Path');
+const path = require('path');
 
 const getUserProfile = async (req, res) => {
   try {
@@ -21,37 +22,31 @@ const getUserProfile = async (req, res) => {
 
 const updateUserProfile = async (req, res) => {
   try {
-    const { firstname, lastname, age, nationality, sex, phone } = req.body;
-
     const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
 
-    if (!user) {
-      return res.status(404).json({ message: 'Utilisateur introuvable' });
+    // Si Multer a bien reçu un fichier, on met à jour le champ avatar
+    if (req.file) {
+      user.avatar = `/uploads/avatars/${req.file.filename}`;
     }
 
-    user.firstname = firstname || user.firstname;
-    user.lastname = lastname || user.lastname;
+    // Mise à jour des autres champs texte
+    const { firstname, lastname, age, nationality, phone } = req.body;
+    user.firstName = firstname || user.firstName; // Utilise firstName (majuscule) du modèle
+    user.lastName = lastname || user.lastName;
     user.age = age !== undefined ? age : user.age;
     user.nationality = nationality || user.nationality;
-    user.sex = sex || user.sex;
     user.phone = phone || user.phone;
 
     const updatedUser = await user.save();
-
-    res.status(200).json({
-      _id: updatedUser._id,
-      email: updatedUser.email,
-      firstname: updatedUser.firstname,
-      lastname: updatedUser.lastname,
-      age: updatedUser.age,
-      nationality: updatedUser.nationality,
-      sex: updatedUser.sex,
-      phone: updatedUser.phone,
-      role: updatedUser.role
-    });
+    
+    // On renvoie l'utilisateur complet sans le mot de passe
+    const response = updatedUser.toObject();
+    delete response.password;
+    res.status(200).json(response);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Erreur lors de la mise à jour du profil' });
+    res.status(500).json({ message: 'Erreur lors de la mise à jour' });
   }
 };
 
