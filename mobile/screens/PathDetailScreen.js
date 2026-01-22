@@ -12,7 +12,7 @@ import BottomNav from '../components/BottomNav';
 const { width } = Dimensions.get('window');
 
 export default function PathDetailScreen({ route, navigation }) {
-  const { id } = route.params;
+  const { pathId } = route.params;
   const [path, setPath] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -26,12 +26,12 @@ export default function PathDetailScreen({ route, navigation }) {
 
   useEffect(() => {
     fetchPath();
-  }, [id]);
+  }, [pathId]);
 
   const fetchPath = async () => {
     try {
       setIsLoading(true);
-      const data = await pathService.getPathById(id);
+      const data = await pathService.getPathById(pathId);
       setPath(data);
     } catch (err) {
       errorHandler.handle(err, 'Impossible de charger le parcours');
@@ -55,7 +55,7 @@ export default function PathDetailScreen({ route, navigation }) {
   const handleStartTrip = async () => {
     try {
       await storage.setItem('lastPathId', path._id);
-      navigation.navigate('Roadmap', { id: path._id });
+      navigation.navigate('Roadmap', { pathId: path._id });
     } catch (error) {
       console.error('Erreur sauvegarde parcours:', error);
     }
@@ -167,7 +167,7 @@ export default function PathDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      <BottomNav navigation={navigation} activeRoute="PathDetail" currentPathId={id} />
+      <BottomNav navigation={navigation} activeRoute="PathDetail" currentPathId={pathId} />
     </View>
   );
 }

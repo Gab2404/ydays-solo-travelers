@@ -1,67 +1,64 @@
-import React, { useEffect, useState, useRef, useContext } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
   View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, 
   ScrollView, Dimensions, Animated, Alert 
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { CheckCircle, MapPin, ChevronRight, X, Clock, Camera, Award, Image as ImageIcon } from 'lucide-react-native';
+import { CheckCircle, MapPin, ChevronRight, X, Clock, Navigation } from 'lucide-react-native';
 import pathService from '../services/pathService';
-import questService from '../services/questService';
-import userService from '../services/userService';
+import questValidationService from '../services/questValidationService';
 import errorHandler from '../utils/errorHandler';
 import BottomNav from '../components/BottomNav';
-import CameraCapture from '../components/CameraCapture';
-import { AuthContext } from '../context/AuthContext';
-
-// --- AJOUTS POUR LE GPS ---
-import ProximityChecker from '../components/ProximityChecker'; 
+import ProximityChecker from '../ProximityChecker';
 import { useGeolocation } from '../hooks/useGeolocation';
 
 const { width } = Dimensions.get('window');
 const PANEL_WIDTH = width * 0.75;
 
-export default function RoadmapScreen({ route, navigation }) {
-  // Sécurité : on récupère pathId OU id pour éviter les erreurs de navigation
-  const pathId = route.params?.pathId || route.params?.id;
-  const { user: authUser } = useContext(AuthContext);
-  
+export default function RoadmapScreenGPS({ route, navigation }) {
+  const { id } = route.params;
   const [path, setPath] = useState(null);
   const [selectedQuestId, setSelectedQuestId] = useState(null);
   const [completedQuests, setCompletedQuests] = useState([]);
   const [inProgressQuests, setInProgressQuests] = useState([]);
-  const [isPathCompleted, setIsPathCompleted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCameraVisible, setIsCameraVisible] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
-  
-  // --- NOUVEAUX ÉTATS GPS ---
-  const [isNearby, setIsNearby] = useState(false);
-  const { location, startTracking, stopTracking } = useGeolocation();
   
   const scrollViewRef = useRef(null);
   const slideAnim = useRef(new Animated.Value(PANEL_WIDTH)).current;
+  
+  // Hook de géolocalisation
+  const { 
+    location, 
+    isTracking, 
+    startTracking, 
+    stopTracking,
+    getDistanceTo,
+    isNearby 
+  } = useGeolocation();
 
   useEffect(() => {
-    if (!pathId) {
-      console.error("RoadmapScreen: pathId est manquant");
-      setIsLoading(false);
-      return;
-    }
-
     fetchPath();
-    checkUserProgress();
-    
-    // Démarrage du tracking GPS
-    startTracking();
-    
-    // Nettoyage à la sortie de l'écran
-    return () => stopTracking();
-  }, [pathId]);
+  }, [id]);
+
+  useEffect(() => {
+    // Démarrer le tracking quand une quête est sélectionnée
+    if (selectedQuestId && !isTracking) {
+      startTracking();
+    }
+  }, [selectedQuestId]);
+
+  // Nettoyage
+  useEffect(() => {
+    return () => {
+      stopTracking();
+    };
+  }, []);
 
   const fetchPath = async () => {
     try {
       setIsLoading(true);
-      const data = await pathService.getPathById(pathId);
+      const data = await pathService.getPathById(id);
       setPath(data);
     } catch (err) {
       errorHandler.handle(err, 'Impossible de charger le parcours');
@@ -71,135 +68,77 @@ export default function RoadmapScreen({ route, navigation }) {
     }
   };
 
-  const checkUserProgress = async () => {
-    try {
-      const userData = await userService.getCurrentUser();
-      
-      // ✅ CORRECTION 1 : Nettoyage des doublons avec Set()
-      const rawIds = userData.completedQuests?.map(cq => cq.questId) || [];
-      const uniqueIds = [...new Set(rawIds)]; 
-      setCompletedQuests(uniqueIds);
-      
-      const pathCompleted = userData.completedPaths?.some(cp => {
-        const idToCheck = cp.pathId ? cp.pathId.toString() : cp.toString();
-        return idToCheck === pathId;
-      });
-      setIsPathCompleted(pathCompleted || false);
-    } catch (error) {
-      console.error('Erreur récupération progression:', error);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#d97706" />
-      </View>
-    );
-  }
-
-  if (!path) return null;
-
-  const reversedQuests = [...path.quests].reverse();
-
-  const getQuestCoordinates = (index) => {
-    const centerX = width / 2;
-    const yGap = 140; 
-    const xOffset = 80; 
-    
-    const x = index % 2 === 0 ? centerX + xOffset : centerX - xOffset;
-    const y = 140 + index * yGap; 
-    
-    return { x, y };
-  };
-
-  const generateSvgPath = () => {
-    if (!reversedQuests || reversedQuests.length === 0) return [];
-    
-    const paths = [];
-    reversedQuests.forEach((quest, index) => {
-      if (index === 0) return;
-      
-      const pos = getQuestCoordinates(index);
-      const prevPos = getQuestCoordinates(index - 1);
-      const controlY = (prevPos.y + pos.y) / 2;
-      
-      const d = `M ${prevPos.x} ${prevPos.y} C ${prevPos.x} ${controlY}, ${pos.x} ${controlY}, ${pos.x} ${pos.y}`;
-      
-      const prevQuest = reversedQuests[index - 1];
-      const isLineCompleted = completedQuests.includes(prevQuest._id) && completedQuests.includes(quest._id);
-      
-      paths.push({
-        d,
-        color: isLineCompleted ? "#22c55e" : "#cbd5e1"
-      });
-    });
-    
-    return paths;
-  };
-
   const handleStartQuest = () => {
     if (selectedQuestId && !inProgressQuests.includes(selectedQuestId)) {
       setInProgressQuests([...inProgressQuests, selectedQuestId]);
-      errorHandler.showSuccess('Étape commencée ! Rapprochez-vous du lieu.');
+      startTracking(); // Activer le GPS
+      errorHandler.showSuccess('Étape commencée ! GPS activé 📍');
     }
   };
 
-  const handleOpenCamera = () => {
-    // --- VÉRIFICATION GPS AVANT D'OUVRIR LA CAMÉRA ---
-    if (!isNearby) {
-      Alert.alert("Trop loin", "Vous devez être à moins de 50m du point pour valider.");
+  const handleValidateWithGPS = async () => {
+    if (!selectedQuestId) return;
+    
+    const selectedQuest = path.quests.find(q => q._id === selectedQuestId);
+    if (!selectedQuest) return;
+
+    // Vérifier qu'on a la position
+    if (!location) {
+      errorHandler.showInfo(
+        'GPS requis',
+        'Activez votre GPS pour valider cette étape'
+      );
       return;
     }
-    
-    // On vérifie aussi si la quête n'est pas déjà validée
-    if (selectedQuestId && !completedQuests.includes(selectedQuestId)) {
-      setIsCameraVisible(true);
-    }
-  };
 
-  const handlePhotoTaken = async (photoData) => {
+    setIsValidating(true);
+
     try {
-      setIsCameraVisible(false);
-      setIsValidating(true);
+      // Vérifier d'abord la proximité
+      const proximityCheck = await questValidationService.checkProximity(
+        selectedQuestId,
+        location.latitude,
+        location.longitude
+      );
 
-      // Envoi des coordonnées avec la photo
-      const result = await questService.validateQuest(selectedQuestId, photoData, location?.coords);
-
-      // ✅ CORRECTION 2 : Mise à jour locale sécurisée sans doublons
-      setCompletedQuests(prev => {
-        if (prev.includes(selectedQuestId)) return prev;
-        return [...prev, selectedQuestId];
-      });
-      
-      if (result.pathCompleted) {
-        setIsPathCompleted(true);
-        Alert.alert(
-          '🎉 Parcours Terminé !',
-          `Félicitations ! Tu as complété "${path.title}" et gagné ${result.xpGained} XP bonus !`,
-          [
-            { 
-              text: 'Voir ma galerie', 
-              onPress: () => navigation.navigate('Gallery', { pathId: pathId })
-            },
-            { text: 'Super !', style: 'default' }
-          ]
+      if (!proximityCheck.data.isNearby) {
+        const distanceText = `${proximityCheck.data.distanceMeters}m`;
+        errorHandler.showInfo(
+          'Trop éloigné',
+          `Vous êtes à ${distanceText} de la destination. Rapprochez-vous pour valider !`
         );
-      } else {
-        Alert.alert(
-          '✅ Étape validée !',
-          `+${result.xpGained} XP ! Continue ton aventure.`,
-          [{ text: 'Super !', style: 'default' }]
-        );
+        return;
       }
 
-    } catch (error) {
-      console.error('Erreur validation:', error);
-      Alert.alert(
-        'Erreur',
-        error.message || 'Impossible de valider la quête. Réessaye.',
-        [{ text: 'OK' }]
+      // Valider la quête
+      const validation = await questValidationService.validateQuest(
+        selectedQuestId,
+        location.latitude,
+        location.longitude
       );
+
+      // Succès !
+      setCompletedQuests([...completedQuests, selectedQuestId]);
+      
+      Alert.alert(
+        '🎉 Bravo !',
+        `Quête validée !\n\n+${validation.data.userProgress.totalXP % 50} XP\nNiveau ${validation.data.userProgress.level}`,
+        [
+          {
+            text: 'Super !',
+            onPress: handleClosePanel
+          }
+        ]
+      );
+    } catch (err) {
+      if (err.data && err.data.distanceMeters) {
+        errorHandler.showInfo(
+          'Trop éloigné',
+          `Vous êtes à ${err.data.distanceMeters}m de la destination.`
+        );
+      } else {
+        errorHandler.handle(err, 'Impossible de valider la quête');
+      }
     } finally {
       setIsValidating(false);
     }
@@ -207,7 +146,6 @@ export default function RoadmapScreen({ route, navigation }) {
 
   const handleNodePress = (questId) => {
     setSelectedQuestId(questId);
-    setIsNearby(false); // Reset proximité quand on change de point
     Animated.timing(slideAnim, {
       toValue: 0,
       duration: 300,
@@ -225,51 +163,77 @@ export default function RoadmapScreen({ route, navigation }) {
     });
   };
 
-  const handleViewGallery = () => {
-    navigation.navigate('Gallery', { pathId: pathId });
+  const handleNearbyDetected = (distance) => {
+    // Vibration ou notification quand l'utilisateur arrive
+    errorHandler.showSuccess('🎯 Vous êtes arrivé ! Vous pouvez valider l\'étape.');
   };
 
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#d97706" />
+      </View>
+    );
+  }
+
+  if (!path) return null;
+
+  const reversedQuests = [...path.quests].reverse();
   const selectedQuest = path.quests.find(q => q._id === selectedQuestId);
   const questNumber = selectedQuest ? reversedQuests.length - reversedQuests.findIndex(q => q._id === selectedQuestId) : 0;
   const totalQuests = path.quests.length;
-  
-  // ✅ CORRECTION 3 : Calcul du pourcentage sécurisé (Max 100%)
-  // On ne compte que les quêtes terminées qui font partie de CE parcours spécifique
-  const completedInThisPath = completedQuests.filter(id => path.quests.some(q => q._id === id)).length;
-  const progressPercentage = Math.min(100, Math.round((completedInThisPath / totalQuests) * 100));
+  const progressPercentage = Math.round((completedQuests.length / totalQuests) * 100);
 
   const isQuestCompleted = selectedQuest && completedQuests.includes(selectedQuest._id);
   const isQuestInProgress = selectedQuest && inProgressQuests.includes(selectedQuest._id);
   const isQuestNotStarted = selectedQuest && !isQuestInProgress && !isQuestCompleted;
 
+  // Calculer la distance si on a la position
+  let distanceToQuest = null;
+  if (selectedQuest && location) {
+    distanceToQuest = getDistanceTo(selectedQuest.location);
+  }
+
+  // Vérifier la proximité
+  const canValidateByProximity = selectedQuest && location && isNearby(selectedQuest.location, 0.1);
+
+  // Générer le SVG path (code identique à l'original)
+  const getQuestCoordinates = (index) => {
+    const centerX = width / 2;
+    const yGap = 140; 
+    const xOffset = 80; 
+    const x = index % 2 === 0 ? centerX + xOffset : centerX - xOffset;
+    const y = 140 + index * yGap; 
+    return { x, y };
+  };
+
+  const generateSvgPath = () => {
+    if (!reversedQuests || reversedQuests.length === 0) return [];
+    const paths = [];
+    reversedQuests.forEach((quest, index) => {
+      if (index === 0) return;
+      const pos = getQuestCoordinates(index);
+      const prevPos = getQuestCoordinates(index - 1);
+      const controlY = (prevPos.y + pos.y) / 2;
+      const d = `M ${prevPos.x} ${prevPos.y} C ${prevPos.x} ${controlY}, ${pos.x} ${controlY}, ${pos.x} ${pos.y}`;
+      const prevQuest = reversedQuests[index - 1];
+      const isPathCompleted = completedQuests.includes(prevQuest._id) && completedQuests.includes(quest._id);
+      paths.push({ d, color: isPathCompleted ? "#22c55e" : "#cbd5e1" });
+    });
+    return paths;
+  };
+
   return (
     <View style={styles.container}>
       
-      {isPathCompleted && (
-        <TouchableOpacity 
-          style={styles.completedPathBanner}
-          onPress={handleViewGallery}
-          activeOpacity={0.9}
-        >
-          <Award size={20} color="#fff" />
-          <Text style={styles.completedPathBannerText}>
-            Parcours terminé ! Voir ma galerie
-          </Text>
-          <ImageIcon size={18} color="#fff" />
-        </TouchableOpacity>
-      )}
-
-      <View style={[styles.fixedHeader, isPathCompleted && { top: 60 }]}>
+      <View style={styles.fixedHeader}>
         <Text style={styles.city}>{path.city}</Text>
         <Text style={styles.pathTitle} numberOfLines={1}>{path.title}</Text>
       </View>
 
       <ScrollView 
         ref={scrollViewRef}
-        contentContainerStyle={[
-          styles.roadmapContainer,
-          isPathCompleted && { paddingTop: 190 }
-        ]} 
+        contentContainerStyle={styles.roadmapContainer} 
         showsVerticalScrollIndicator={false}
         bounces={false}
         onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
@@ -384,17 +348,15 @@ export default function RoadmapScreen({ route, navigation }) {
 
             <View style={styles.sidePanelContent}>
               
-              {/* --- INTEGRATION DU CHECKER DE PROXIMITÉ --- */}
+              {/* ✅ COMPOSANT DE PROXIMITÉ GPS */}
               {isQuestInProgress && !isQuestCompleted && (
-                <ProximityChecker 
-                  userLocation={location?.coords} 
-                  questLocation={{
-                    // IMPORTANT : Conversion des noms de variables pour ProximityChecker
-                    latitude: selectedQuest.location.lat,
-                    longitude: selectedQuest.location.lng
-                  }} 
-                  onNearby={() => setIsNearby(true)} 
-                />
+                <View style={styles.proximitySection}>
+                  <ProximityChecker 
+                    questLocation={selectedQuest.location}
+                    onNearby={handleNearbyDetected}
+                    threshold={0.1}
+                  />
+                </View>
               )}
 
               <View style={styles.infoSection}>
@@ -406,7 +368,7 @@ export default function RoadmapScreen({ route, navigation }) {
 
               <TouchableOpacity 
                 style={styles.mapButton}
-                onPress={() => navigation.navigate('Map', { pathId: pathId })}
+                onPress={() => navigation.navigate('Map', { id })}
               >
                 <MapPin size={20} color="#f97316" />
                 <Text style={styles.mapButtonText}>Voir la map</Text>
@@ -426,23 +388,19 @@ export default function RoadmapScreen({ route, navigation }) {
               <TouchableOpacity 
                 style={[
                   styles.actionButton, 
-                  (!isNearby || isValidating) && styles.actionButtonDisabled
+                  !canValidateByProximity && styles.actionButtonDisabled
                 ]} 
-                onPress={handleOpenCamera}
-                disabled={isValidating || !isNearby}
+                onPress={handleValidateWithGPS}
+                disabled={!canValidateByProximity || isValidating}
               >
                 {isValidating ? (
-                  <>
-                    <ActivityIndicator size="small" color="#fff" />
-                    <Text style={styles.actionButtonText}>Validation...</Text>
-                  </>
+                  <ActivityIndicator color="#fff" />
                 ) : (
                   <>
-                    <Camera size={20} color="#fff" />
+                    <Navigation size={20} color="#fff" />
                     <Text style={styles.actionButtonText}>
-                      {isNearby ? "Prendre une photo" : "Lieu non atteint"}
+                      {canValidateByProximity ? 'Valider avec GPS' : 'Rapprochez-vous'}
                     </Text>
-                    <ChevronRight size={20} color="#fff" />
                   </>
                 )}
               </TouchableOpacity>
@@ -458,14 +416,7 @@ export default function RoadmapScreen({ route, navigation }) {
         </Animated.View>
       )}
 
-      <CameraCapture
-        visible={isCameraVisible}
-        onClose={() => setIsCameraVisible(false)}
-        onPhotoTaken={handlePhotoTaken}
-        questTitle={selectedQuest?.title || ''}
-      />
-
-      <BottomNav navigation={navigation} activeRoute="Roadmap" currentPathId={pathId} />
+      <BottomNav navigation={navigation} activeRoute="Roadmap" currentid={id} />
     </View>
   );
 }
@@ -478,33 +429,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f8fafc'
-  },
-
-  completedPathBanner: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#22c55e',
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    paddingTop: 55,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    zIndex: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 10
-  },
-
-  completedPathBannerText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700'
   },
   
   fixedHeader: { 
@@ -659,6 +583,10 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   
+  proximitySection: {
+    marginBottom: 20,
+  },
+  
   descriptionBox: {
     backgroundColor: '#f8fafc',
     borderLeftWidth: 4,
@@ -727,8 +655,8 @@ const styles = StyleSheet.create({
   },
   
   actionButtonDisabled: {
-    opacity: 0.6,
-    backgroundColor: '#cbd5e1'
+    backgroundColor: '#cbd5e1',
+    shadowOpacity: 0,
   },
   
   actionButtonText: {

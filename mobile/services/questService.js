@@ -24,23 +24,25 @@ const questService = {
    * @param {Object} photoData - Données de la photo (uri, base64)
    * @returns {Promise} Résultat de la validation
    */
-  validateQuest: async (questId, photoData) => {
+  validateQuest: async (questId, photoData, location) => {
     try {
-      // Créer un FormData pour envoyer la photo
       const formData = new FormData();
       
-      // Ajouter la photo au FormData
+      // Ajout de la photo
       formData.append('photo', {
         uri: photoData.uri,
         type: 'image/jpeg',
         name: `quest_${questId}_${Date.now()}.jpg`,
       });
 
-      // Envoyer la requête avec le bon Content-Type
+      // AJOUT DES COORDONNÉES GPS (Nouveauté)
+      if (location) {
+        formData.append('latitude', location.latitude.toString());
+        formData.append('longitude', location.longitude.toString());
+      }
+
       const response = await api.post(`/quests/${questId}/validate`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       return response.data;

@@ -1,5 +1,6 @@
 const Path = require('../models/Path');
 const Quest = require('../models/Quest');
+const mongoose = require('mongoose');
 const { validatePathData } = require('../utils/validation');
 
 // @desc    Récupérer tous les parcours (avec filtre optionnel par ville)
@@ -27,7 +28,14 @@ const getAllPaths = async (req, res) => {
 // @access  Public
 const getPathById = async (req, res) => {
   try {
-    const path = await Path.findById(req.params.id).populate('quests');
+    const { id } = req.params;
+
+    // AJOUT DU BLOC DE SÉCURITÉ CI-DESSOUS
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Identifiant de parcours invalide' });
+    }
+
+    const path = await Path.findById(id).populate('quests');
     
     if (!path) {
       return res.status(404).json({ message: 'Parcours introuvable' });

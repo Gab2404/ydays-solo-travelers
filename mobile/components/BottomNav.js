@@ -87,7 +87,7 @@ export default function BottomNav({ navigation, activeRoute, currentPathId }) {
       return;
     }
     
-    navigateWithDirection('Roadmap', { id: pathId });
+    navigateWithDirection('Roadmap', { pathId: pathId });
   };
 
   const handleMapPress = () => {
@@ -101,7 +101,7 @@ export default function BottomNav({ navigation, activeRoute, currentPathId }) {
       return;
     }
     
-    navigateWithDirection('Map', { id: pathId });
+    navigateWithDirection('Map', { pathId: pathId });
   };
 
   // Vérifier si l'utilisateur peut voir le panel admin

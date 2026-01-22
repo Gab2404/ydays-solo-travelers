@@ -56,7 +56,8 @@ export default function DashboardScreen({ route, navigation }) {
       <TouchableOpacity 
         activeOpacity={0.9}
         style={styles.card}
-        onPress={() => navigation.navigate('PathDetail', { id: item._id })}
+        // MODIFICATION : On utilise pathId au lieu de id pour correspondre aux écrans suivants
+        onPress={() => navigation.navigate('PathDetail', { pathId: item._id })}
       >
         <View style={styles.cardImageContainer}>
           <Image 
