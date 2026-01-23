@@ -5,7 +5,8 @@ import { ActivityIndicator, View } from 'react-native';
 import { AuthContext, AuthContextProvider } from './context/AuthContext';
 import { NavigationDirectionProvider, useNavigationDirection } from './context/NavigationContext';
 
-// Screens
+// Screen
+import WelcomeScreen from './screens/WelcomeScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import CitySelectionScreen from './screens/CitySelectionScreen';
@@ -46,8 +47,9 @@ function AppNavigator() {
     >
       {!user ? (
         <>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="Welcome" component={WelcomeScreen} />
+          {/* <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} /> */}
         </>
       ) : (
         <>
