@@ -21,6 +21,11 @@ const PathSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+
+  imageUrl: {
+    type: String,
+    default: '' 
+  },
   
   // Liste des étapes/quêtes du parcours
   quests: [{ 

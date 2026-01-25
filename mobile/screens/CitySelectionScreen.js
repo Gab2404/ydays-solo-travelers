@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useCallback } from 'react';
 import { 
   View, Text, TextInput, TouchableOpacity, StyleSheet, 
   ScrollView, ImageBackground, Image, FlatList 
@@ -7,19 +7,30 @@ import { Search } from 'lucide-react-native';
 import { AuthContext } from '../context/AuthContext';
 import storage from '../utils/storage';
 import BottomNav from '../components/BottomNav';
+import * as SplashScreen from 'expo-splash-screen'; // <--- 1. IMPORT
 
 export default function CitySelectionScreen({ navigation }) {
   const { user, logout } = useContext(AuthContext);
   const [searchText, setSearchText] = useState('');
 
+  // 2. Cacher le Splash Screen au montage du composant
   useEffect(() => {
+    const hideSplash = async () => {
+      try {
+        await SplashScreen.hideAsync();
+      } catch (e) {
+        console.warn(e);
+      }
+    };
+    hideSplash();
+    
     loadLastCity();
   }, []);
 
   const loadLastCity = async () => {
     const lastCity = await storage.getLastCity();
     if (lastCity) {
-      // Optionnel: Navigation automatique vers la dernière ville
+      // Optionnel: Navigation automatique
       // navigation.navigate('Dashboard', { city: lastCity });
     }
   };
@@ -60,7 +71,7 @@ export default function CitySelectionScreen({ navigation }) {
       <View style={styles.header}>
         <View>
           <Text style={styles.welcomeLabel}>Bienvenue,</Text>
-          <Text style={styles.username}>{user.firstname}</Text>
+          <Text style={styles.username}>{user?.firstname || 'Voyageur'}</Text>
         </View>
         <TouchableOpacity onPress={handleLogout} style={styles.closeBtn}>
           <Text style={styles.closeText}>✕</Text>
@@ -68,7 +79,7 @@ export default function CitySelectionScreen({ navigation }) {
       </View>
 
       {/* BOUTON ADMIN */}
-      {user.role === 'admin' && (
+      {user?.role === 'admin' && (
         <TouchableOpacity 
           style={styles.adminBtn} 
           onPress={() => navigation.navigate('AdminPanel')}

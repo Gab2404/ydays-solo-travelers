@@ -35,6 +35,7 @@ app.use('/api/quests', questRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/quest-validation', questValidationRoutes);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Route de test
 app.get('/', (req, res) => {

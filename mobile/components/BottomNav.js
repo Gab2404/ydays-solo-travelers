@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
-import { Search, List, Map, User, Settings } from 'lucide-react-native';
+import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import { Home, Compass, Map, User, Settings } from 'lucide-react-native'; // Ajout de Compass
 import { AuthContext } from '../context/AuthContext';
 import { useNavigationDirection } from '../context/NavigationContext';
 import storage from '../utils/storage';
@@ -11,13 +11,11 @@ export default function BottomNav({ navigation, activeRoute, currentPathId }) {
   const { setDirection } = useNavigationDirection();
   const [lastPathId, setLastPathId] = useState(null);
 
-  // Ordre des routes dans la navbar
+  // Ordre des routes
   const getRouteOrder = () => {
     const routes = {
-      'CitySelection': 0,
-      'Dashboard': 0,
-      'PathDetail': 0,
-      'Roadmap': 1,
+      'Home': 0,
+      'Dashboard': 1, // Nouvelle page Quêtes
       'Map': 2,
       'Profile': 3,
     };
@@ -31,140 +29,101 @@ export default function BottomNav({ navigation, activeRoute, currentPathId }) {
 
   useEffect(() => {
     loadLastPathId();
-    
-    if (currentPathId) {
-      savePathId(currentPathId);
-    }
+    if (currentPathId) savePathId(currentPathId);
   }, [currentPathId]);
 
   const loadLastPathId = async () => {
     try {
       const saved = await storage.getItem('lastPathId');
       if (saved) setLastPathId(saved);
-    } catch (error) {
-      console.error('Erreur chargement pathId:', error);
-    }
+    } catch (error) { console.error(error); }
   };
 
   const savePathId = async (id) => {
-    try {
-      await storage.setItem('lastPathId', id);
-      setLastPathId(id);
-    } catch (error) {
-      console.error('Erreur sauvegarde pathId:', error);
-    }
+    try { await storage.setItem('lastPathId', id); setLastPathId(id); } 
+    catch (error) { console.error(error); }
   };
 
-  // Navigation avec détection de direction
   const navigateWithDirection = (targetScreen, params = {}) => {
     const routeOrder = getRouteOrder();
     const currentIndex = routeOrder[activeRoute] ?? 0;
     const targetIndex = routeOrder[targetScreen] ?? 0;
     
-    // Définir la direction AVANT la navigation
-    if (targetIndex > currentIndex) {
-      // On va vers un bouton plus à droite
-      setDirection('right');
-    } else if (targetIndex < currentIndex) {
-      // On va vers un bouton plus à gauche
-      setDirection('left');
-    }
+    if (targetIndex > currentIndex) setDirection('right');
+    else if (targetIndex < currentIndex) setDirection('left');
     
-    // Petite pause pour que le contexte se mette à jour
-    setTimeout(() => {
-      navigation.navigate(targetScreen, params);
-    }, 50);
+    setTimeout(() => { navigation.navigate(targetScreen, params); }, 50);
   };
 
-  const handleRoadmapPress = () => {
-    const pathId = currentPathId || lastPathId;
-    
-    if (!pathId) {
-      errorHandler.showInfo(
-        "Aucun parcours sélectionné",
-        "Veuillez d'abord choisir un parcours depuis la recherche."
-      );
-      return;
-    }
-    
-    navigateWithDirection('Roadmap', { pathId: pathId });
-  };
-
-  const handleMapPress = () => {
-    const pathId = currentPathId || lastPathId;
-    
-    if (!pathId) {
-      errorHandler.showInfo(
-        "Aucun parcours sélectionné", 
-        "Veuillez d'abord choisir un parcours depuis la recherche."
-      );
-      return;
-    }
-    
-    navigateWithDirection('Map', { pathId: pathId });
-  };
-
-  // Vérifier si l'utilisateur peut voir le panel admin
   const canAccessAdmin = user?.role === 'admin' || user?.certified;
 
   return (
     <View style={styles.bottomNav}>
       
+      {/* 1. ACCUEIL */}
       <TouchableOpacity 
-        style={[styles.navItem, activeRoute === 'CitySelection' && styles.activeNavItem]}
-        onPress={() => navigateWithDirection('CitySelection')}
+        style={[styles.navItem, activeRoute === 'Home' && styles.activeNavItem]}
+        onPress={() => navigateWithDirection('Home')}
       >
-        <Search 
-          size={28} 
-          color={activeRoute === 'CitySelection' ? '#d97706' : '#64748b'} 
-          strokeWidth={activeRoute === 'CitySelection' ? 2.5 : 2}
+        <Home 
+          size={26} 
+          color={activeRoute === 'Home' ? '#d97706' : '#64748b'} 
+          strokeWidth={activeRoute === 'Home' ? 2.5 : 2}
         />
+        <Text style={[styles.navText, activeRoute === 'Home' && styles.activeNavText]}>Accueil</Text>
       </TouchableOpacity>
 
+      {/* 2. QUÊTES (DASHBOARD) - NOUVEAU */}
       <TouchableOpacity 
-        style={[styles.navItem, activeRoute === 'Roadmap' && styles.activeNavItem]}
-        onPress={handleRoadmapPress}
+        style={[styles.navItem, activeRoute === 'Dashboard' && styles.activeNavItem]}
+        onPress={() => navigateWithDirection('Dashboard', { city: 'Bordeaux' })} // Force Bordeaux par défaut
       >
-        <List 
-          size={28} 
-          color={activeRoute === 'Roadmap' ? '#d97706' : '#64748b'} 
-          strokeWidth={activeRoute === 'Roadmap' ? 2.5 : 2}
+        <Compass 
+          size={26} 
+          color={activeRoute === 'Dashboard' ? '#d97706' : '#64748b'} 
+          strokeWidth={activeRoute === 'Dashboard' ? 2.5 : 2}
         />
+        <Text style={[styles.navText, activeRoute === 'Dashboard' && styles.activeNavText]}>Quêtes</Text>
       </TouchableOpacity>
 
+      {/* 3. CARTE */}
       <TouchableOpacity 
         style={[styles.navItem, activeRoute === 'Map' && styles.activeNavItem]}
-        onPress={handleMapPress}
+        onPress={() => navigateWithDirection('Map')}
       >
         <Map 
-          size={28} 
+          size={26} 
           color={activeRoute === 'Map' ? '#d97706' : '#64748b'} 
           strokeWidth={activeRoute === 'Map' ? 2.5 : 2}
         />
+        <Text style={[styles.navText, activeRoute === 'Map' && styles.activeNavText]}>Carte</Text>
       </TouchableOpacity>
 
+      {/* 4. PROFIL */}
       <TouchableOpacity 
         style={[styles.navItem, activeRoute === 'Profile' && styles.activeNavItem]}
         onPress={() => navigateWithDirection('Profile')}
       >
         <User 
-          size={28} 
+          size={26} 
           color={activeRoute === 'Profile' ? '#d97706' : '#64748b'} 
           strokeWidth={activeRoute === 'Profile' ? 2.5 : 2}
         />
+        <Text style={[styles.navText, activeRoute === 'Profile' && styles.activeNavText]}>Compte</Text>
       </TouchableOpacity>
 
-      {/* Bouton Admin Panel - visible uniquement pour admin/certifiés */}
+      {/* 5. ADMIN (Si autorisé) */}
       {canAccessAdmin && (
         <TouchableOpacity 
           style={[styles.navItem, activeRoute === 'AdminPanel' && styles.activeNavItem]}
           onPress={() => navigateWithDirection('AdminPanel')}
         >
           <Settings 
-            size={28} 
+            size={26} 
             color={activeRoute === 'AdminPanel' ? '#d97706' : '#64748b'} 
             strokeWidth={activeRoute === 'AdminPanel' ? 2.5 : 2}
           />
+          <Text style={[styles.navText, activeRoute === 'AdminPanel' && styles.activeNavText]}>Admin</Text>
         </TouchableOpacity>
       )}
 
@@ -178,27 +137,34 @@ const styles = StyleSheet.create({
     bottom: 0, 
     left: 0, 
     right: 0, 
-    height: 80, 
+    height: 90, // Un peu plus haut pour les labels
     backgroundColor: '#fff', 
     flexDirection: 'row', 
     justifyContent: 'space-around', 
     alignItems: 'center',
-    paddingBottom: 20,
-    // Ombre élégante au lieu du trait noir
+    paddingBottom: 20, // Pour les écrans sans bouton home physique
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
     elevation: 20,
   },
   navItem: { 
-    padding: 10,
-    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 5,
+    width: 60,
   },
-  activeNavItem: {
-    backgroundColor: '#fff7ed',
+  navText: {
+    fontSize: 10,
+    fontFamily: 'Poppins_500Medium',
+    color: '#64748b',
+    marginTop: 4
+  },
+  activeNavText: {
+    color: '#d97706',
+    fontWeight: 'bold'
   }
 });

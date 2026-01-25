@@ -55,7 +55,16 @@ const pathService = {
    */
   createPath: async (pathData) => {
     try {
-      const response = await api.post('/paths', pathData);
+      // On vérifie si c'est du FormData (pour l'image) ou du JSON classique
+      const isFormData = pathData instanceof FormData;
+      
+      const response = await api.post('/paths', pathData, {
+        headers: {
+          // Si c'est FormData, on laisse le navigateur/axios gérer le Content-Type (multipart/form-data)
+          // Sinon, c'est du JSON par défaut
+          'Content-Type': isFormData ? 'multipart/form-data' : 'application/json',
+        },
+      });
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

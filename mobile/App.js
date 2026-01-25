@@ -8,9 +8,10 @@ import { NavigationDirectionProvider, useNavigationDirection } from './context/N
 // --- NOUVEAUX SCREENS ---
 import IntroScreen from './screens/IntroScreen'; 
 import WelcomeScreen from './screens/WelcomeScreen'; // <-- C'est ici que se trouve ton auth fusionnée
+import HomeScreen from './screens/HomeScreen';
 
 // --- SCREENS CONNECTÉS ---
-import CitySelectionScreen from './screens/CitySelectionScreen';
+// import CitySelectionScreen from './screens/CitySelectionScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import PathDetailScreen from './screens/PathDetailScreen';
 import RoadmapScreen from './screens/RoadmapScreen';
@@ -65,7 +66,7 @@ function AppNavigator() {
       ) : (
         // === ZONE CONNECTÉ ===
         <>
-          <Stack.Screen name="CitySelection" component={CitySelectionScreen} />
+          <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="Dashboard" component={DashboardScreen} />
           <Stack.Screen name="PathDetail" component={PathDetailScreen} />
           <Stack.Screen name="Roadmap" component={RoadmapScreen} />

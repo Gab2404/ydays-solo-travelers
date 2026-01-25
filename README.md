@@ -5,6 +5,7 @@
     npm init -y
     npm install express mongoose cors dotenv
     npm install --save-dev nodemon
+    npm install multer
 
     cd ..
     cd .\frontend\

@@ -1,5 +1,6 @@
 import { AlertTriangle, Edit3, MapPin, Navigation, Package, Plus, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
 import {
   ActivityIndicator,
   FlatList, Keyboard,
@@ -7,7 +8,8 @@ import {
   ScrollView,
   StyleSheet,
   Text, TextInput, TouchableOpacity,
-  View
+  View,
+  Image
 } from 'react-native';
 import MapView from 'react-native-maps';
 import BottomNav from '../components/BottomNav';
@@ -27,6 +29,7 @@ export default function AdminPanelScreen({ navigation }) {
     description: '' 
   });
   const [citySuggestions, setCitySuggestions] = useState([]);
+  const [pathImage, setPathImage] = useState(null);
   
   // Data Quêtes
   const [paths, setPaths] = useState([]);
@@ -90,20 +93,75 @@ export default function AdminPanelScreen({ navigation }) {
     Keyboard.dismiss();
   };
 
-  const handleCreatePath = async () => {
-    if (!pathData.city || !pathData.title) {
-      errorHandler.showInfo("Erreur", "Titre et Ville obligatoires");
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Permission nécessaire pour accéder aux images !');
       return;
     }
 
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setPathImage(result.assets[0].uri);
+    }
+  };
+
+  const handleCreatePath = async () => {
+    // Vérification des champs
+    if (!pathData.title || !pathData.city) {
+      // Adapte selon ta gestion d'erreur actuelle (soit errorHandler, soit alert)
+      if (errorHandler && errorHandler.showValidationErrors) {
+         return errorHandler.showValidationErrors(['Titre et ville requis']);
+      } else {
+         return alert("Titre et ville requis");
+      }
+    }
+
     try {
-      const newPath = await pathService.createPath(pathData);
-      errorHandler.showSuccess('Parcours créé avec succès !');
+      // Création du FormData pour l'image
+      const formData = new FormData();
+      formData.append('title', pathData.title);
+      formData.append('city', pathData.city);
+      formData.append('difficulty', pathData.difficulty);
+      formData.append('description', pathData.description);
+
+      // Si une image est sélectionnée, on l'ajoute
+      if (pathImage) {
+        const filename = pathImage.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image`;
+
+        formData.append('image', { uri: pathImage, name: filename, type });
+      }
+
+      // Envoi au serveur
+      await pathService.createPath(formData);
+      
+      // Succès : Reset du formulaire
+      setPathModalVisible(false);
       setPathData({ title: '', city: '', difficulty: 'Culturel', description: '' });
-      fetchPaths();
-      setSelectedPath(newPath);
-    } catch (err) { 
-      errorHandler.handle(err, "Impossible de créer le parcours");
+      setPathImage(null); 
+      
+      // CORRECTION ICI : Utiliser le bon nom de fonction existant dans ton fichier
+      fetchPaths(); 
+      
+      if (errorHandler && errorHandler.showSuccess) {
+        errorHandler.showSuccess('Parcours créé avec succès !');
+      }
+
+    } catch (err) {
+      if (errorHandler && errorHandler.handle) {
+        errorHandler.handle(err, 'Erreur création parcours');
+      } else {
+        console.error(err);
+        alert("Erreur lors de la création");
+      }
     }
   };
 
@@ -264,7 +322,37 @@ export default function AdminPanelScreen({ navigation }) {
                     onChangeText={t => setPathData({...pathData, title: t})} 
                   />
                 </View>
-                
+
+                <View style={{marginBottom: 15}}>
+                  <Text style={{fontSize: 14, fontWeight: '600', color: '#1e293b', marginBottom: 8}}>
+                    Image de couverture
+                  </Text>
+                  
+                  <TouchableOpacity 
+                    onPress={pickImage}
+                    style={{
+                      height: 150, backgroundColor: '#f8fafc', 
+                      borderWidth: 1, borderColor: '#e2e8f0', borderStyle: 'dashed', borderRadius: 12,
+                      justifyContent: 'center', alignItems: 'center', overflow: 'hidden'
+                    }}
+                  >
+                    {pathImage ? (
+                      <Image source={{ uri: pathImage }} style={{width: '100%', height: '100%'}} resizeMode="cover" />
+                    ) : (
+                      <View style={{alignItems: 'center'}}>
+                        {/* Tu peux utiliser une icône ici si tu veux, ex: <ImageIcon /> */}
+                        <Text style={{color: '#64748b', fontSize: 14}}>+ Ajouter une image</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  {pathImage && (
+                    <TouchableOpacity onPress={() => setPathImage(null)} style={{alignSelf: 'flex-end', marginTop: 5}}>
+                      <Text style={{color: '#ef4444', fontSize: 12, fontWeight: 'bold'}}>Supprimer</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                                
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Ville *</Text>
                   <TextInput 
