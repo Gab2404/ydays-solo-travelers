@@ -3,8 +3,8 @@ import axios from 'axios';
 
 
 // Configuration de base
-export const SERVER_URL = 'http://192.168.0.232:5000'; // IP Bureau
-// export const SERVER_URL = 'http://172.20.10.7:5000'; // partage co
+// export const SERVER_URL = 'http://192.168.0.232:5000'; // IP Bureau
+export const SERVER_URL = 'http://172.20.10.7:5000'; // partage co
 // export const SERVER_URL = 'http://192.168.0.129:5000'; // IP Maison
 
 const API_URL = `${SERVER_URL}/api`;
