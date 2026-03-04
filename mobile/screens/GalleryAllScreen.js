@@ -222,7 +222,7 @@ export default function GalleryAllScreen({ navigation }) {
         )}
       </ScrollView>
 
-      <BottomNav navigation={navigation} activeRoute="Profile" />
+      <BottomNav navigation={navigation} activeRoute="GalleryAll" />
     </View>
   );
 }
