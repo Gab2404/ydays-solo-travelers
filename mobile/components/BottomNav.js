@@ -1,12 +1,10 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { View, TouchableOpacity, StyleSheet, Text, Image, Alert } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Text, Alert } from 'react-native';
 import { Home, Compass, Map, Images, User, Settings } from 'lucide-react-native';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigationDirection } from '../context/NavigationContext';
 import storage from '../utils/storage';
 import errorHandler from '../utils/errorHandler';
-
-const mascotte = require('../assets/images/mascotte4.png');
 
 export default function BottomNav({ navigation, activeRoute, currentPathId }) {
   const { user } = useContext(AuthContext);
@@ -110,13 +108,18 @@ export default function BottomNav({ navigation, activeRoute, currentPathId }) {
         <Text style={[styles.navText, activeRoute === 'Dashboard' && styles.activeNavText]}>Quêtes</Text>
       </TouchableOpacity>
 
-      {/* 3. ROADMAP — mascotte flottante */}
+      {/* 3. CARTE */}
       <TouchableOpacity
-        style={styles.mapBtn}
+        style={[styles.navItem, activeRoute === 'Map' && styles.activeNavItem]}
         onPress={handleMascotPress}
         activeOpacity={0.85}
       >
-        <Image source={mascotte} style={[styles.mascotteImg, activeRoute === 'Map' && styles.mascotteImgActive]} resizeMode="contain" />
+        <Map
+          size={22}
+          color={activeRoute === 'Map' ? '#d97706' : '#64748b'}
+          strokeWidth={activeRoute === 'Map' ? 2.5 : 2}
+        />
+        <Text style={[styles.navText, activeRoute === 'Map' && styles.activeNavText]}>Carte</Text>
       </TouchableOpacity>
 
       {/* 4. GALERIE */}
@@ -199,22 +202,5 @@ const styles = StyleSheet.create({
   activeNavText: {
     color: '#d97706',
     fontWeight: 'bold'
-  },
-
-  // Bouton central Carte — mascotte flottante
-  mapBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 5,
-    width: 60,
-  },
-  mascotteImg: {
-    width: 64,
-    height: 64,
-    opacity: 0.8,
-    marginTop: 6,
-  },
-  mascotteImgActive: {
-    opacity: 1,
   },
 });

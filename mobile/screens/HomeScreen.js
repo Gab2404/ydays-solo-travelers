@@ -10,6 +10,9 @@ import BottomNav from '../components/BottomNav';
 import pathService from '../services/pathService';
 import userService from '../services/userService';
 import api from '../utils/api';
+import RatingBadge from '../components/RatingBadge';
+import ReviewsListModal from '../components/ReviewsListModal';
+import usePathRating from '../hooks/usePathRating';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, AoboshiOne_400Regular } from '@expo-google-fonts/aoboshi-one';
 import { Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
@@ -41,6 +44,41 @@ const CATEGORY_IMAGES = {
 
 const CATEGORIES = ['Tout', 'Culturel', 'Sportif', 'Culinaire', 'Détente', 'Mixte'];
 
+// Badge dynamique pour la carte "À la une" (variant dark, fond sombre)
+function FeaturedRatingBadge({ path, onPress }) {
+  const lastQuestId = path?.quests?.[path.quests.length - 1]?._id;
+  const { averageRating, totalReviews } = usePathRating(lastQuestId);
+  return (
+    <RatingBadge rating={averageRating} reviewsCount={totalReviews} onPress={onPress} variant="dark" size="md" />
+  );
+}
+
+// Badge dynamique pour la liste "Autour de toi" (variant light, fond clair)
+function NearbyRatingBadge({ path, onPress }) {
+  const lastQuestId = path?.quests?.[path.quests.length - 1]?._id;
+  const { averageRating, totalReviews } = usePathRating(lastQuestId);
+  return (
+    <RatingBadge rating={averageRating} reviewsCount={totalReviews} onPress={onPress} variant="light" size="sm" />
+  );
+}
+
+// Modal liste d'avis pour HomeScreen
+function HomeReviewsList({ path, visible, onClose }) {
+  const lastQuestId = path?.quests?.[path.quests.length - 1]?._id;
+  const { averageRating, totalReviews, reviews, isLoading } = usePathRating(lastQuestId);
+  return (
+    <ReviewsListModal
+      visible={visible}
+      onClose={onClose}
+      reviews={reviews}
+      averageRating={averageRating}
+      totalReviews={totalReviews}
+      questTitle={path?.title}
+      isLoading={isLoading}
+    />
+  );
+}
+
 /* ─── Boussole image en arrière-plan du header ─── */
 function CompassDeco() {
   return (
@@ -69,6 +107,7 @@ export default function HomeScreen({ navigation }) {
   const [paths, setPaths] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeQuest, setActiveQuest] = useState(null);
+  const [reviewsPath, setReviewsPath] = useState(null); // parcours dont on affiche les avis
 
   let [fontsLoaded] = useFonts({
     AoboshiOne_400Regular,
@@ -262,9 +301,7 @@ export default function HomeScreen({ navigation }) {
                   {featuredPath.difficulty} · {featuredPath.city}
                 </Text>
               </View>
-              <Text style={styles.heroScore}>
-                4.8 <Text style={styles.heroScoreSub}>/ 5</Text>
-              </Text>
+              <FeaturedRatingBadge path={featuredPath} onPress={() => setReviewsPath(featuredPath)} />
             </View>
 
             {/* Titre + méta */}
@@ -342,7 +379,7 @@ export default function HomeScreen({ navigation }) {
                 </View>
               </View>
               <View style={styles.nearbyRight}>
-                <Text style={styles.nearbyRating}>4.8</Text>
+                <NearbyRatingBadge path={path} onPress={() => setReviewsPath(path)} />
                 <View style={styles.nearbyDistBadge}>
                   <Text style={styles.nearbyDistText}>{path.quests?.length} ét.</Text>
                 </View>
@@ -362,6 +399,15 @@ export default function HomeScreen({ navigation }) {
       </ScrollView>
 
       <BottomNav navigation={navigation} activeRoute="Home" />
+
+      {/* Modal liste d'avis */}
+      {reviewsPath && (
+        <HomeReviewsList
+          path={reviewsPath}
+          visible={!!reviewsPath}
+          onClose={() => setReviewsPath(null)}
+        />
+      )}
     </View>
   );
 }

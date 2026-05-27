@@ -7,6 +7,9 @@ import { Clock, MapPin, Search, SlidersHorizontal, Map } from 'lucide-react-nati
 import pathService from '../services/pathService';
 import errorHandler from '../utils/errorHandler';
 import BottomNav from '../components/BottomNav';
+import RatingBadge from '../components/RatingBadge';
+import ReviewsListModal from '../components/ReviewsListModal';
+import usePathRating from '../hooks/usePathRating';
 import { useFonts, AoboshiOne_400Regular } from '@expo-google-fonts/aoboshi-one';
 import { Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { SERVER_URL } from '../utils/api';
@@ -38,6 +41,32 @@ const CATEGORY_GRADIENTS = {
   'Mixte':      ['#22262E', '#181C24'],
 };
 
+// Badge de note dynamique pour les cartes du Dashboard (variant light)
+function CardRatingBadge({ item, onPress }) {
+  const lastQuestId = item?.quests?.[item.quests.length - 1]?._id;
+  const { averageRating, totalReviews } = usePathRating(lastQuestId);
+  return (
+    <RatingBadge rating={averageRating} reviewsCount={totalReviews} onPress={onPress} variant="light" size="sm" />
+  );
+}
+
+// Modal liste d'avis pour DashboardScreen
+function DashboardReviewsList({ path, visible, onClose }) {
+  const lastQuestId = path?.quests?.[path.quests.length - 1]?._id;
+  const { averageRating, totalReviews, reviews, isLoading } = usePathRating(lastQuestId);
+  return (
+    <ReviewsListModal
+      visible={visible}
+      onClose={onClose}
+      reviews={reviews}
+      averageRating={averageRating}
+      totalReviews={totalReviews}
+      questTitle={path?.title}
+      isLoading={isLoading}
+    />
+  );
+}
+
 export default function DashboardScreen({ route, navigation }) {
   const city = route.params?.city || 'Bordeaux';
   
@@ -46,6 +75,7 @@ export default function DashboardScreen({ route, navigation }) {
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('Tout');
   const [searchQuery, setSearchQuery] = useState('');
+  const [reviewsPath, setReviewsPath] = useState(null);
 
   let [fontsLoaded] = useFonts({
     AoboshiOne_400Regular,
@@ -208,10 +238,7 @@ export default function DashboardScreen({ route, navigation }) {
             ) : (
               <Text style={styles.footerSub}>{distance} de toi</Text>
             )}
-            <View style={styles.ratingRow}>
-              <Text style={styles.ratingStar}>★</Text>
-              <Text style={styles.ratingVal}>{rating}</Text>
-            </View>
+            <CardRatingBadge item={item} onPress={() => setReviewsPath(item)} />
           </View>
         </View>
       </TouchableOpacity>
@@ -308,6 +335,15 @@ export default function DashboardScreen({ route, navigation }) {
       )}
 
       <BottomNav navigation={navigation} activeRoute="Dashboard" />
+
+      {/* Modal liste d'avis */}
+      {reviewsPath && (
+        <DashboardReviewsList
+          path={reviewsPath}
+          visible={!!reviewsPath}
+          onClose={() => setReviewsPath(null)}
+        />
+      )}
     </View>
   );
 }

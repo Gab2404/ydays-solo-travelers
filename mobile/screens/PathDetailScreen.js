@@ -13,6 +13,10 @@ import storage from '../utils/storage';
 import userService from '../services/userService';
 import errorHandler from '../utils/errorHandler';
 import BottomNav from '../components/BottomNav';
+import QuestReviewModal from '../components/QuestReviewModal';
+import RatingBadge from '../components/RatingBadge';
+import ReviewsListModal from '../components/ReviewsListModal';
+import usePathRating from '../hooks/usePathRating';
 
 const { width } = Dimensions.get('window');
 
@@ -29,6 +33,44 @@ const COLORS = {
   rule: '#EAE6E1',
 };
 
+/**
+ * Sous-composant : badge de note dynamique pour le hero du PathDetail.
+ * Lit les avis de la dernière quête du parcours via usePathRating.
+ */
+function PathRatingBadge({ path, onPress }) {
+  const lastQuestId = path?.quests?.[path.quests.length - 1]?._id;
+  const { averageRating, totalReviews } = usePathRating(lastQuestId);
+  return (
+    <RatingBadge
+      rating={averageRating}
+      reviewsCount={totalReviews}
+      onPress={onPress}
+      variant="dark"
+      size="md"
+      style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 10 }}
+    />
+  );
+}
+
+/**
+ * Sous-composant : modal liste d'avis connecté aux données réelles.
+ */
+function PathReviewsList({ path, visible, onClose }) {
+  const lastQuestId = path?.quests?.[path.quests.length - 1]?._id;
+  const { averageRating, totalReviews, reviews, isLoading } = usePathRating(lastQuestId);
+  return (
+    <ReviewsListModal
+      visible={visible}
+      onClose={onClose}
+      reviews={reviews}
+      averageRating={averageRating}
+      totalReviews={totalReviews}
+      questTitle={path?.title}
+      isLoading={isLoading}
+    />
+  );
+}
+
 export default function PathDetailScreen({ route, navigation }) {
   const { pathId } = route.params;
   const [path, setPath] = useState(null);
@@ -37,6 +79,10 @@ export default function PathDetailScreen({ route, navigation }) {
   const [completedQuests, setCompletedQuests] = useState([]);
   const [inProgressQuests, setInProgressQuests] = useState([]);
   const [selectedStepId, setSelectedStepId] = useState(null);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [reviewQuestId, setReviewQuestId] = useState(null);
+  const [reviewQuestTitle, setReviewQuestTitle] = useState('');
+  const [reviewsListVisible, setReviewsListVisible] = useState(false);
   const mapRef = useRef(null);
 
   const categoryImages = {
@@ -172,10 +218,7 @@ export default function PathDetailScreen({ route, navigation }) {
         <View style={styles.heroCat}>
           <Text style={styles.heroCatText}>{(path.difficulty || 'Parcours').toUpperCase()} · {path.city || 'Bordeaux'}</Text>
         </View>
-        <View style={styles.heroRating}>
-          <Text style={styles.heroRatingStar}>★</Text>
-          <Text style={styles.heroRatingVal}>4.8</Text>
-        </View>
+        <PathRatingBadge path={path} onPress={() => setReviewsListVisible(true)} />
       </View>
 
       {/* ── SCROLLABLE CONTENT ── */}
@@ -443,12 +486,48 @@ export default function PathDetailScreen({ route, navigation }) {
               {isCompleted ? 'Voir ma galerie' : isOngoing ? 'Reprendre l\'aventure' : 'Commencer l\'aventure'}
             </Text>
           </TouchableOpacity>
+
+          {/* Bouton d'évaluation — visible uniquement si le parcours est terminé */}
+          {isCompleted && (
+            <TouchableOpacity
+              style={styles.reviewBtn}
+              onPress={() => {
+                // Ouvre le modal pour évaluer la dernière quête du parcours
+                const lastQuest = path.quests[path.quests.length - 1];
+                setReviewQuestId(lastQuest._id);
+                setReviewQuestTitle(path.title);
+                setReviewModalVisible(true);
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.reviewBtnStar}>★</Text>
+              <Text style={styles.reviewBtnText}>Évaluer ce parcours</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={{ height: 20 }} />
       </ScrollView>
 
       <BottomNav navigation={navigation} activeRoute="PathDetail" currentPathId={pathId} />
+
+      {/* ── REVIEW MODAL ── */}
+      <QuestReviewModal
+        visible={reviewModalVisible}
+        onClose={() => setReviewModalVisible(false)}
+        onSuccess={() => setReviewModalVisible(false)}
+        questId={reviewQuestId}
+        questTitle={reviewQuestTitle}
+      />
+
+      {/* ── REVIEWS LIST MODAL ── */}
+      {path && (
+        <PathReviewsList
+          path={path}
+          visible={reviewsListVisible}
+          onClose={() => setReviewsListVisible(false)}
+        />
+      )}
     </View>
   );
 }
@@ -780,5 +859,30 @@ const styles = StyleSheet.create({
   ctaBtnText: {
     fontFamily: 'AoboshiOne_400Regular',
     fontSize: 14, color: '#fff', letterSpacing: 0.4,
+  },
+
+  // Review button (secondary — appears below CTA when completed)
+  reviewBtn: {
+    marginTop: 10,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.rule,
+    backgroundColor: COLORS.white,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  reviewBtnStar: {
+    fontSize: 16,
+    color: '#FFD060',
+    lineHeight: 20,
+  },
+  reviewBtnText: {
+    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 13,
+    color: COLORS.ink2,
+    letterSpacing: 0.1,
   },
 });

@@ -11,7 +11,8 @@ const pathRoutes = require('./routes/paths');
 const questRoutes = require('./routes/quests');
 const userRoutes = require('./routes/users');
 const galleryRoutes = require('./routes/gallery');
-const questValidationRoutes = require('./routes/questValidation')
+const questValidationRoutes = require('./routes/questValidation');
+const reviewRoutes = require('./routes/reviews');
 
 // Initialisation
 const app = express();
@@ -35,6 +36,7 @@ app.use('/api/quests', questRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/quest-validation', questValidationRoutes);
+app.use('/api/reviews', reviewRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Route de test

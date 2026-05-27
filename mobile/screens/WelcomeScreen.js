@@ -249,12 +249,9 @@ export default function AuthScreen({ navigation }) {
 
         {/* === COUCHE 1 : ÉCRAN D'ACCUEIL === */}
         <Animated.View style={[styles.welcomeLayer, { transform: [{ translateY: welcomeTranslateY }], opacity: welcomeOpacity }]}>
-           <View style={styles.header}>
+          <View style={styles.header}>
             <Text style={styles.discoverText}>Découvrez</Text>
             <Image source={require('../assets/images/LOGO1.png')} style={styles.logoImageWelcome} resizeMode="contain"/>
-          </View>
-          <View style={styles.mascotContainer}>
-              <Image source={require('../assets/images/mascotte3.png')} style={styles.mascotImage} resizeMode="contain"/>
           </View>
           <View style={styles.footer}>
             <TouchableOpacity style={styles.mainButton} onPress={() => openPopup('login')} activeOpacity={0.8}>
@@ -302,25 +299,23 @@ const styles = StyleSheet.create({
   topShadow: { position: 'absolute', top: 0, width: '100%', height: '35%', zIndex: 1 },
   bottomShadow: { position: 'absolute', bottom: 0, width: '100%', height: '45%', zIndex: 1 },
   
-  welcomeLayer: { 
-    flex: 1, 
-    justifyContent: 'space-between', 
-    paddingTop: 80, 
-    paddingBottom: 60, 
-    zIndex: 2 
+  welcomeLayer: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingTop: 80,
+    paddingBottom: 60,
+    zIndex: 2
   },
   header: { alignItems: 'center' },
-  discoverText: { 
+  discoverText: {
     fontFamily: 'AoboshiOne_400Regular',
-    color: COLORS.white, 
-    fontSize: 70, 
+    color: COLORS.white,
+    fontSize: 70,
     marginTop: 40,
     textShadowColor: 'rgba(0, 0, 0, 0.3)', textShadowOffset: {width: 0, height: 2}, textShadowRadius: 10
   },
   logoImageWelcome: { width: width * 0.85, height: 140, marginTop: -50 },
-  mascotContainer: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', marginBottom: -30 },
-  mascotImage: { width: width * 1.4, height: width * 1.4, marginBottom: -250 },
-  footer: { width: '100%', alignItems: 'center', zIndex: 20 },
+  footer: { width: '100%', alignItems: 'center', zIndex: 20, paddingHorizontal: 20 },
   mainButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)', borderWidth: 2, borderColor: COLORS.white,
     borderRadius: 50, paddingVertical: 16, width: '80%', alignItems: 'center',
