@@ -229,7 +229,6 @@ export default function RoadmapScreen({ route, navigation }) {
 
   const handleViewGallery = () => navigation.navigate('GalleryAll');
 
-
   // ── Calcul distance vers la quête sélectionnée ──
   const getDistance = () => {
     if (!location?.coords || !selectedQuest?.location) return null;
@@ -277,7 +276,7 @@ export default function RoadmapScreen({ route, navigation }) {
   return (
     <View style={styles.container}>
 
-      {/* ── CARTE PLEIN ÉCRAN ── */}
+      {/* ── CARTE PLEIN ÉCRAN (depuis le haut absolu) ── */}
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
@@ -328,45 +327,31 @@ export default function RoadmapScreen({ route, navigation }) {
         })}
       </MapView>
 
-      {/* ── HERO HEADER avec image de catégorie ── */}
-      <View style={styles.heroCard} pointerEvents="none">
-        {(() => {
-          const pathImg = getPathImage(path);
-          return (
-            <>
-              <View style={styles.heroBg} />
-              {pathImg && (
-                <Image
-                  source={pathImg}
-                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}
-                  resizeMode="cover"
-                />
-              )}
-            </>
-          );
-        })()}
-        <View style={styles.heroOverlay} />
-        <View style={styles.heroContent}>
-          <View style={styles.heroEyebrow}>
-            <View style={styles.heroStepBadge}>
-              <Text style={styles.heroStepBadgeText}>
-                {selectedQuest
-                  ? `ÉTAPE ${questNumber} SUR ${totalQuests}`
-                  : `${totalQuests} ÉTAPES`}
-              </Text>
-            </View>
-            <Text style={styles.heroXp}>★ +{path.xpReward || 200} XP</Text>
-          </View>
-          <Text style={styles.heroTitle} numberOfLines={1}>{path.title}</Text>
-          {selectedQuest && distanceLabel && (
-            <View style={styles.heroSub}>
-              <Clock size={10} color="rgba(255,255,255,0.6)" />
-              <Text style={styles.heroSubText}>{selectedQuest.title} · {distanceLabel}</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.heroProgBar}>
-          <View style={[styles.heroProgFill, { width: `${progressPercentage}%` }]} />
+      {/* ── VIGNETTE MINIATURE (coin haut-droit, sous la status bar) ── */}
+      <View style={styles.vignetteWrapper} pointerEvents="none">
+        <View style={styles.vignette}>
+          {(() => {
+            const pathImg = getPathImage(path);
+            return (
+              <>
+                {pathImg ? (
+                  <Image
+                    source={pathImg}
+                    style={styles.vignetteImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#1A3035' }]} />
+                )}
+                <View style={styles.vignetteOverlay} />
+                <View style={styles.vignetteLabel}>
+                  <Text style={styles.vignetteLabelText}>
+                    {path.difficulty?.toUpperCase() || 'PARCOURS'}
+                  </Text>
+                </View>
+              </>
+            );
+          })()}
         </View>
       </View>
 
@@ -597,47 +582,56 @@ const styles = StyleSheet.create({
     flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.bg,
   },
 
-  // ── HERO HEADER ──
-  heroCard: {
-    position: 'absolute', top: 0, left: 0, right: 0,
-    height: 160, zIndex: 15, overflow: 'hidden',
+  // ── VIGNETTE MINIATURE (remplace le hero header) ──
+  vignetteWrapper: {
+    position: 'absolute',
+    top: 48,
+    right: 14,
+    zIndex: 30,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.8,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 14,
   },
-  heroBg: {
+  vignette: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  vignetteImage: {
+    position: 'absolute',
+    top: -18,
+    left: -18,
+    width: 108,
+    height: 108,
+  },
+  vignetteOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#1A3035',
+    backgroundColor: 'rgba(0,0,0,0.06)',
   },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+  vignetteLabel: {
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
+    backgroundColor: 'rgba(0,0,0,0.52)',
+    paddingVertical: 4,
+    alignItems: 'center',
   },
-  heroContent: {
-    position: 'absolute', bottom: 16, left: 18, right: 18, zIndex: 2,
+  vignetteLabelText: {
+    fontSize: 6.5,
+    fontWeight: '700',
+    letterSpacing: 0.9,
+    color: '#fff',
+    textTransform: 'uppercase',
   },
-  heroEyebrow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4,
-  },
-  heroStepBadge: {
-    backgroundColor: 'rgba(237,111,45,0.25)',
-    borderWidth: 1, borderColor: 'rgba(237,111,45,0.35)',
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4,
-  },
-  heroStepBadgeText: {
-    fontSize: 9, fontWeight: '700', letterSpacing: 1,
-    textTransform: 'uppercase', color: '#F5C39F',
-  },
-  heroXp: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
-  heroTitle: { fontSize: 17, fontWeight: '700', color: '#fff', letterSpacing: -0.2, marginBottom: 4 },
-  heroSub: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  heroSubText: { fontSize: 10, color: 'rgba(255,255,255,0.6)' },
-  heroProgBar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    height: 3, backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  heroProgFill: { height: '100%', backgroundColor: COLORS.orange, borderRadius: 10 },
 
   // ── BANNER TERMINÉ ──
   completedBanner: {
-    position: 'absolute', top: 120, left: 0, right: 0,
+    position: 'absolute',
+    top: 0,           // plus de hero, le banner part du haut
+    left: 0, right: 0,
     backgroundColor: '#22c55e',
     paddingVertical: 10, paddingHorizontal: 18,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
