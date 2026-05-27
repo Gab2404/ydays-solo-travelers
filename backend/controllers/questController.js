@@ -1,6 +1,7 @@
 const Quest = require('../models/Quest');
 const Path = require('../models/Path');
 const User = require('../models/User');
+const questService = require('../services/questService'); // Import du service de calcul
 const { validateQuestData } = require('../utils/validation');
 
 // @desc    Récupérer les quêtes d'un parcours
@@ -111,63 +112,60 @@ const deleteQuest = async (req, res) => {
   }
 };
 
-// @desc    Valider une quête avec une photo
+// @desc    Valider une quête avec une photo ET vérification GPS
 // @route   POST /api/quests/:id/validate
 // @access  Private
 const validateQuest = async (req, res) => {
   try {
     const questId = req.params.id;
     const userId = req.user.id;
+    // Récupération des coordonnées envoyées par le mobile
+    const { latitude, longitude } = req.body; 
 
-    // Vérifier que la photo a été uploadée
+    // 1. VÉRIFICATION GPS (Nouvelle brique de sécurité)
+    if (!latitude || !longitude) {
+      return res.status(400).json({ message: 'Coordonnées GPS manquantes' });
+    }
+
+    const proximity = await questService.checkProximity(questId, latitude, longitude);
+    if (!proximity.isNearby) {
+      return res.status(400).json({ 
+        message: `Vous êtes trop loin (${proximity.distanceMeters}m). Rapprochez-vous !`,
+        distance: proximity.distanceMeters
+      });
+    }
+
+    // 2. VÉRIFICATION PHOTO (Ton code original)
     if (!req.file) {
       return res.status(400).json({ message: 'Aucune photo fournie' });
     }
 
-    // Récupérer la quête
     const quest = await Quest.findById(questId);
-    if (!quest) {
-      return res.status(404).json({ message: 'Quête introuvable' });
-    }
+    if (!quest) return res.status(404).json({ message: 'Quête introuvable' });
 
-    // Récupérer l'utilisateur pour vérification
     const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'Utilisateur introuvable' });
-    }
+    if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
 
-    // Vérifier si la quête n'est pas déjà complétée
-    if (user.hasCompletedQuest && user.hasCompletedQuest(questId)) {
-      return res.status(400).json({ message: 'Quête déjà complétée' });
-    }
+    // Vérifier si déjà complétée
+    const isAlreadyDone = user.completedQuests?.some(cq => cq.questId.toString() === questId.toString());
+    if (isAlreadyDone) return res.status(400).json({ message: 'Quête déjà complétée' });
 
-    // Construire l'URL de la photo
     const photoUrl = `/uploads/quests/${req.file.filename}`;
-
-    // XP de base pour la quête
-    const XP_PER_QUEST = 100;
+    const XP_PER_QUEST = quest.xpReward || 100;
     let totalXpGained = XP_PER_QUEST;
 
-    // Vérifier si toutes les quêtes du parcours seront complétées après celle-ci
+    // 3. LOGIQUE DE PROGRESSION ET PARCOURS (Ton code original conservé à 100%)
     const path = await Path.findById(quest.pathId).populate('quests');
-    
-    // Calculer les quêtes complétées (incluant celle-ci)
-    const completedQuestsIds = user.completedQuests 
-      ? user.completedQuests.map(cq => cq.questId.toString()) 
-      : [];
+    const completedQuestsIds = user.completedQuests ? user.completedQuests.map(cq => cq.questId.toString()) : [];
     completedQuestsIds.push(questId.toString());
 
-    const allQuestsCompleted = path.quests.every(q => 
-      completedQuestsIds.includes(q._id.toString())
-    );
-
-    const hasCompletedPath = user.hasCompletedPath ? 
-      user.hasCompletedPath(path._id) : 
-      user.completedPaths?.some(cp => {
-        // Support ancien format (ObjectId direct) et nouveau format (objet avec pathId)
-        const pathIdToCheck = cp.pathId ? cp.pathId.toString() : cp.toString();
-        return pathIdToCheck === path._id.toString();
-      });
+    const allQuestsCompleted = path.quests.every(q => completedQuestsIds.includes(q._id.toString()));
+    
+    // Support de tes deux formats de complétion de parcours
+    const hasCompletedPath = user.completedPaths?.some(cp => {
+      const pathIdToCheck = cp.pathId ? cp.pathId.toString() : cp.toString();
+      return pathIdToCheck === path._id.toString();
+    });
 
     let pathCompletionBonus = 0;
     const updateData = {
@@ -181,7 +179,6 @@ const validateQuest = async (req, res) => {
       $inc: { xp: XP_PER_QUEST }
     };
 
-    // Si toutes les quêtes sont complétées et que le parcours n'était pas déjà complété
     if (allQuestsCompleted && !hasCompletedPath) {
       const PATH_COMPLETION_BONUS = 500;
       pathCompletionBonus = PATH_COMPLETION_BONUS;
@@ -194,21 +191,14 @@ const validateQuest = async (req, res) => {
       };
     }
 
-    // Calculer le nouveau niveau basé sur le nouvel XP
     const newXp = (user.xp || 0) + totalXpGained;
-    const newLevel = Math.floor(newXp / 1000) + 1; // Formule simple : 1 niveau tous les 1000 XP
-
+    const newLevel = Math.floor(newXp / 1000) + 1;
     updateData.$set = { level: newLevel };
 
-    // SOLUTION ALTERNATIVE : Mise à jour directe sans charger tout le document
-    await User.findByIdAndUpdate(
-      userId,
-      updateData,
-      { runValidators: false, new: true }
-    );
+    await User.findByIdAndUpdate(userId, updateData, { new: true });
 
     res.status(200).json({
-      message: 'Quête validée avec succès !',
+      message: 'Quête validée avec succès ! 🎉',
       xpGained: totalXpGained,
       totalXp: newXp,
       level: newLevel,

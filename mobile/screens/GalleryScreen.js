@@ -1,27 +1,47 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ActivityIndicator, TouchableOpacity,
-  ScrollView, Image, Dimensions, Alert, Modal, Pressable // Ajout de Modal et Pressable
+  ScrollView, Image, Dimensions, Alert, Modal, Pressable
 } from 'react-native';
-import { ArrowLeft, Download, Calendar, MapPin, X } from 'lucide-react-native'; // Ajout de X pour fermer
+import { ArrowLeft, Download, Calendar, MapPin, X, Award } from 'lucide-react-native';
+import { useFonts, AoboshiOne_400Regular } from '@expo-google-fonts/aoboshi-one';
+import { Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import galleryService from '../services/galleryService';
 import errorHandler from '../utils/errorHandler';
 import BottomNav from '../components/BottomNav';
 import api from '../utils/api';
 
-const { width, height } = Dimensions.get('window'); // Récupération de la hauteur pour le plein écran
-const PHOTO_SIZE = (width - 48) / 2;
+const { width, height } = Dimensions.get('window');
+
+const COLORS = {
+  orange: '#ED6F2D',
+  teal: '#43868D',
+  tealDark: '#214347',
+  tealLight: '#AECED1',
+  ink: '#1A1A1A',
+  ink2: '#4A4642',
+  ink3: '#9C9590',
+  background: '#FAF8F5',
+  white: '#FFFFFF',
+  rule: '#EAE6E1',
+};
 
 export default function GalleryScreen({ route, navigation }) {
   const { pathId } = route.params;
   const [gallery, setGallery] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
-  
-  // Nouvel état pour la photo en grand écran
-  const [selectedFullScreenPhoto, setSelectedFullScreenPhoto] = useState(null);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
 
   const serverURL = api.defaults.baseURL.replace(/\/api$/, '');
+
+  let [fontsLoaded] = useFonts({
+    AoboshiOne_400Regular,
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  });
 
   useEffect(() => {
     fetchGallery();
@@ -40,23 +60,22 @@ export default function GalleryScreen({ route, navigation }) {
     }
   };
 
-  const handleDownloadGallery = async () => {
+  const handleDownload = async () => {
     if (!gallery || gallery.photos.length === 0) return;
-
     Alert.alert(
-      '📸 Enregistrer les souvenirs',
-      `Voulez-vous enregistrer ces ${gallery.photos.length} photos directement dans votre galerie photo ?`,
+      '📸 Enregistrer',
+      `Sauvegarder ces ${gallery.photos.length} photos dans votre téléphone ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
-          text: 'Enregistrer',
+          text: 'Oui, enregistrer',
           onPress: async () => {
             try {
               setIsDownloading(true);
               await galleryService.saveAllPhotosToLibrary(gallery.photos);
-              Alert.alert('✅ Succès', 'Toutes les photos sont dans votre album !');
+              Alert.alert('✅ Succès', 'Photos enregistrées !');
             } catch (error) {
-              errorHandler.handle(error, 'Erreur lors de la sauvegarde');
+              errorHandler.handle(error, 'Erreur sauvegarde');
             } finally {
               setIsDownloading(false);
             }
@@ -67,153 +86,172 @@ export default function GalleryScreen({ route, navigation }) {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
+    if (!dateString) return '–';
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: 'numeric', month: 'short', year: 'numeric'
     });
   };
 
-  if (isLoading) {
+  const getImgUri = (photo) => {
+    if (!photo?.photoUrl) return null;
+    return photo.photoUrl.startsWith('http')
+      ? photo.photoUrl
+      : `${serverURL}${photo.photoUrl.startsWith('/') ? '' : '/'}${photo.photoUrl}`;
+  };
+
+  if (isLoading || !fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#f97316" />
+        <ActivityIndicator size="large" color={COLORS.orange} />
       </View>
     );
   }
 
   if (!gallery) return null;
 
+  const xpGained = gallery.xpGained || gallery.totalQuests * 30 || 0;
+
   return (
     <View style={styles.container}>
-      {/* Modal pour le Plein Écran */}
+
+      {/* ── FULLSCREEN MODAL ── */}
       <Modal
-        visible={!!selectedFullScreenPhoto}
-        transparent={true}
+        visible={!!selectedPhoto}
+        transparent
         animationType="fade"
-        onRequestClose={() => setSelectedFullScreenPhoto(null)}
+        onRequestClose={() => setSelectedPhoto(null)}
       >
-        <Pressable 
-          style={styles.modalBackground} 
-          onPress={() => setSelectedFullScreenPhoto(null)}
-        >
-          <TouchableOpacity 
-            style={styles.closeModalButton} 
-            onPress={() => setSelectedFullScreenPhoto(null)}
-          >
-            <X size={30} color="#fff" />
+        <Pressable style={styles.modalBg} onPress={() => setSelectedPhoto(null)}>
+          <TouchableOpacity style={styles.modalClose} onPress={() => setSelectedPhoto(null)}>
+            <X size={22} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
-          
           <Image
-            source={{ uri: selectedFullScreenPhoto }}
-            style={styles.fullScreenImage}
+            source={{ uri: selectedPhoto }}
+            style={styles.modalImg}
             resizeMode="contain"
           />
         </Pressable>
       </Modal>
 
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <ArrowLeft size={24} color="#1e293b" />
+      {/* ── TOP BAR ── */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <ArrowLeft size={14} color={COLORS.ink} strokeWidth={2.2} />
         </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerSubtitle}>Ma galerie</Text>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {gallery.pathTitle}
-          </Text>
+        <View style={styles.topBarText}>
+          <Text style={styles.topBarEyebrow}>Ma Galerie</Text>
+          <Text style={styles.topBarTitle} numberOfLines={1}>{gallery.pathTitle}</Text>
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.infoCard}>
-          <View style={styles.congratsContainer}>
-            <Text style={styles.congratsEmoji}>🎉</Text>
-            <Text style={styles.congratsText}>Parcours terminé !</Text>
+      <View style={styles.rule} />
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+
+        {/* ── SUMMARY CARD ── */}
+        <View style={styles.summaryCard}>
+
+          {/* Completed banner */}
+          <View style={styles.completedBanner}>
+            <Award size={16} color={COLORS.orange} strokeWidth={1.8} />
+            <Text style={styles.completedText}>Parcours terminé !</Text>
           </View>
 
-          <View style={styles.infoRow}>
-            <View style={styles.infoItem}>
-              <MapPin size={18} color="#f97316" />
-              <Text style={styles.infoItemText}>{gallery.pathCity}</Text>
+          {/* Info pills */}
+          <View style={styles.infoPills}>
+            <View style={styles.infoPill}>
+              <MapPin size={13} color={COLORS.ink3} strokeWidth={1.8} />
+              <View>
+                <Text style={styles.pillLbl}>Ville</Text>
+                <Text style={styles.pillVal}>{gallery.pathCity || '–'}</Text>
+              </View>
             </View>
-            <View style={styles.infoItem}>
-              <Calendar size={18} color="#f97316" />
-              <Text style={styles.infoItemText}>
-                {formatDate(gallery.completedAt)}
-              </Text>
+            <View style={styles.infoPill}>
+              <Calendar size={13} color={COLORS.ink3} strokeWidth={1.8} />
+              <View>
+                <Text style={styles.pillLbl}>Date</Text>
+                <Text style={styles.pillVal}>{formatDate(gallery.completedAt)}</Text>
+              </View>
             </View>
           </View>
 
+          {/* Stats */}
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{gallery.photos.length}</Text>
-              <Text style={styles.statLabel}>Photos</Text>
+              <Text style={styles.statVal}>{gallery.photos.length}</Text>
+              <Text style={styles.statLbl}>Photos</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{gallery.totalQuests}</Text>
-              <Text style={styles.statLabel}>Étapes</Text>
+              <Text style={styles.statVal}>{gallery.totalQuests}</Text>
+              <Text style={styles.statLbl}>Étapes</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statVal}>+{xpGained}</Text>
+              <Text style={styles.statLbl}>XP gagnés</Text>
             </View>
           </View>
 
+          {/* Download */}
           <TouchableOpacity
-            style={[styles.downloadButton, isDownloading && styles.downloadButtonDisabled]}
-            onPress={handleDownloadGallery}
+            style={[styles.dlBtn, isDownloading && { opacity: 0.6 }]}
+            onPress={handleDownload}
             disabled={isDownloading}
+            activeOpacity={0.88}
           >
-            {isDownloading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Download size={20} color="#fff" />
-            )}
-            <Text style={styles.downloadButtonText}>
-              {isDownloading ? 'Enregistrement...' : 'Enregistrer dans mes photos'}
+            {isDownloading
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <Download size={16} color="#fff" strokeWidth={2} />
+            }
+            <Text style={styles.dlBtnText}>
+              {isDownloading ? 'Enregistrement…' : 'Enregistrer dans mes photos'}
             </Text>
           </TouchableOpacity>
+
         </View>
 
-        <View style={styles.photosSection}>
-          <Text style={styles.photosSectionTitle}>
-            Mes souvenirs ({gallery.photos.length})
-          </Text>
-
-          <View style={styles.photosGrid}>
-            {gallery.photos.map((photo, index) => {
-              const imgUri = photo.photoUrl.startsWith('http') 
-                ? photo.photoUrl 
-                : `${serverURL}${photo.photoUrl.startsWith('/') ? '' : '/'}${photo.photoUrl}`;
-
-              return (
-                <TouchableOpacity 
-                  key={photo.questId} 
-                  style={styles.photoCard}
-                  onPress={() => setSelectedFullScreenPhoto(imgUri)} // Clic pour agrandir
-                >
-                  <Image
-                    source={{ uri: imgUri }}
-                    style={styles.photoImage}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.photoOverlay}>
-                    <Text style={styles.photoNumber}>#{index + 1}</Text>
-                  </View>
-                  <View style={styles.photoInfo}>
-                    <Text style={styles.photoTitle} numberOfLines={2}>
-                      {photo.questTitle}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+        {/* ── PHOTOS ── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Mes souvenirs</Text>
+          <Text style={styles.sectionCount}>{gallery.photos.length} photos</Text>
         </View>
-        <View style={{ height: 100 }} />
+
+        <View style={styles.photoGrid}>
+          {gallery.photos.map((photo, index) => {
+            const uri = getImgUri(photo);
+            return (
+              <TouchableOpacity
+                key={photo.questId || index}
+                style={styles.photoItem}
+                onPress={() => uri && setSelectedPhoto(uri)}
+                activeOpacity={0.9}
+              >
+                {/* Thumb */}
+                <View style={styles.photoThumb}>
+                  {uri ? (
+                    <Image source={{ uri }} style={styles.photoImg} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.photoImg, { backgroundColor: COLORS.tealDark }]} />
+                  )}
+                  <View style={styles.photoOverlay} />
+                  <View style={styles.photoNum}>
+                    <Text style={styles.photoNumText}>#{index + 1}</Text>
+                  </View>
+                  {photo.questTitle ? (
+                    <Text style={styles.photoPlace} numberOfLines={1}>{photo.questTitle}</Text>
+                  ) : null}
+                </View>
+
+                {/* Labels below */}
+                <Text style={styles.photoLabel}>Étape {index + 1}</Text>
+                {photo.questTitle ? (
+                  <Text style={styles.photoSublabel} numberOfLines={1}>{photo.questTitle}</Text>
+                ) : null}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <View style={{ height: 20 }} />
       </ScrollView>
 
       <BottomNav navigation={navigation} activeRoute="Gallery" currentPathId={pathId} />
@@ -221,56 +259,181 @@ export default function GalleryScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  // ... Vos styles existants ...
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f9fa' },
-  header: { paddingTop: 50, paddingHorizontal: 20, paddingBottom: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', flexDirection: 'row', alignItems: 'center', gap: 12 },
-  backButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center' },
-  headerInfo: { flex: 1 },
-  headerSubtitle: { fontSize: 12, color: '#9ca3af', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#1e293b', marginTop: 2 },
-  content: { padding: 16, paddingBottom: 100 },
-  infoCard: { backgroundColor: '#fff', borderRadius: 20, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
-  congratsContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16, paddingVertical: 12, backgroundColor: '#fef3c7', borderRadius: 12 },
-  congratsEmoji: { fontSize: 24 },
-  congratsText: { fontSize: 18, fontWeight: '700', color: '#b45309' },
-  infoRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  infoItem: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f8fafc', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12 },
-  infoItemText: { fontSize: 13, fontWeight: '600', color: '#1e293b', flex: 1 },
-  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  statBox: { flex: 1, backgroundColor: '#f8fafc', padding: 16, borderRadius: 12, alignItems: 'center' },
-  statNumber: { fontSize: 28, fontWeight: '700', color: '#f97316', marginBottom: 4 },
-  statLabel: { fontSize: 12, fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 },
-  downloadButton: { backgroundColor: '#f97316', borderRadius: 12, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, elevation: 4 },
-  downloadButtonDisabled: { opacity: 0.6 },
-  downloadButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  photosSection: { marginBottom: 20 },
-  photosSectionTitle: { fontSize: 18, fontWeight: '700', color: '#1e293b', marginBottom: 16 },
-  photosGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  photoCard: { width: PHOTO_SIZE, backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
-  photoImage: { width: '100%', height: PHOTO_SIZE, backgroundColor: '#f3f4f6' },
-  photoOverlay: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0, 0, 0, 0.6)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  photoNumber: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  photoInfo: { padding: 12 },
-  photoTitle: { fontSize: 13, fontWeight: '600', color: '#1e293b', marginBottom: 4 },
+const PHOTO_SIZE = (width - 22 * 2 - 10) / 2;
 
-  // Nouveaux styles pour la Modal Plein Écran
-  modalBackground: {
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.background },
+
+  loadingContainer: {
+    flex: 1, justifyContent: 'center', alignItems: 'center',
+    backgroundColor: COLORS.background,
+  },
+
+  // Top bar
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingTop: 56, paddingHorizontal: 22, paddingBottom: 16,
+  },
+  backBtn: {
+    width: 34, height: 34, borderRadius: 8,
+    backgroundColor: COLORS.white,
+    borderWidth: 1, borderColor: COLORS.rule,
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  topBarText: { flex: 1 },
+  topBarEyebrow: {
+    fontFamily: 'Poppins_700Bold',
+    fontSize: 9, letterSpacing: 1.2,
+    textTransform: 'uppercase', color: COLORS.teal, marginBottom: 1,
+  },
+  topBarTitle: {
+    fontFamily: 'AoboshiOne_400Regular',
+    fontSize: 18, color: COLORS.ink,
+  },
+
+  rule: { height: 1, backgroundColor: COLORS.rule, marginHorizontal: 22, marginBottom: 18 },
+
+  scrollContent: { paddingBottom: 100 },
+
+  // Summary card
+  summaryCard: {
+    marginHorizontal: 22, marginBottom: 22,
+    backgroundColor: COLORS.white,
+    borderWidth: 1, borderColor: COLORS.rule,
+    borderRadius: 14, padding: 16,
+  },
+  completedBanner: {
+    backgroundColor: 'rgba(237,111,45,0.08)',
+    borderWidth: 1, borderColor: 'rgba(237,111,45,0.15)',
+    borderRadius: 8, paddingVertical: 10, paddingHorizontal: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginBottom: 14,
+  },
+  completedText: {
+    fontFamily: 'AoboshiOne_400Regular',
+    fontSize: 14, color: COLORS.orange,
+  },
+
+  // Info pills
+  infoPills: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  infoPill: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
+    backgroundColor: COLORS.background,
+    borderWidth: 1, borderColor: COLORS.rule,
+    borderRadius: 8, padding: 9,
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+  },
+  pillLbl: {
+    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 8.5, letterSpacing: 0.8,
+    textTransform: 'uppercase', color: COLORS.ink3,
+  },
+  pillVal: {
+    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 12, color: COLORS.ink,
+  },
+
+  // Stats
+  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  statBox: {
+    flex: 1,
+    borderWidth: 1.5, borderColor: COLORS.rule,
+    borderStyle: 'dashed',
+    borderRadius: 8, paddingVertical: 12, paddingHorizontal: 8,
     alignItems: 'center',
   },
-  fullScreenImage: {
-    width: width,
-    height: height,
+  statVal: {
+    fontFamily: 'AoboshiOne_400Regular',
+    fontSize: 24, color: COLORS.orange,
+    lineHeight: 28, marginBottom: 4,
   },
-  closeModalButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    zIndex: 10,
-    padding: 10,
-  }
+  statLbl: {
+    fontFamily: 'Poppins_700Bold',
+    fontSize: 8.5, letterSpacing: 1,
+    textTransform: 'uppercase', color: COLORS.ink3,
+  },
+
+  // Download
+  dlBtn: {
+    height: 44, borderRadius: 10,
+    backgroundColor: COLORS.orange,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
+    shadowColor: COLORS.orange, shadowOpacity: 0.3, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 }, elevation: 5,
+  },
+  dlBtnText: {
+    fontFamily: 'AoboshiOne_400Regular',
+    fontSize: 13, color: '#fff',
+  },
+
+  // Section header
+  sectionHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 22, marginBottom: 14,
+  },
+  sectionTitle: {
+    fontFamily: 'Poppins_700Bold',
+    fontSize: 9.5, letterSpacing: 1.2,
+    textTransform: 'uppercase', color: COLORS.ink3,
+  },
+  sectionCount: {
+    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 11, color: COLORS.ink3,
+  },
+
+  // Photo grid
+  photoGrid: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    paddingHorizontal: 22, gap: 10,
+  },
+  photoItem: { width: PHOTO_SIZE },
+  photoThumb: {
+    width: PHOTO_SIZE, height: PHOTO_SIZE,
+    borderRadius: 10, overflow: 'hidden',
+    marginBottom: 7, position: 'relative',
+  },
+  photoImg: { width: '100%', height: '100%' },
+  photoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0)',
+    // gradient simulation
+    background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.05) 50%, transparent 100%)',
+  },
+  photoNum: {
+    position: 'absolute', top: 8, right: 8,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 4, paddingHorizontal: 7, paddingVertical: 2,
+  },
+  photoNumText: {
+    fontFamily: 'Poppins_700Bold',
+    fontSize: 9, color: 'rgba(255,255,255,0.85)',
+  },
+  photoPlace: {
+    position: 'absolute', bottom: 8, left: 9, right: 9,
+    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 9.5, color: 'rgba(255,255,255,0.9)',
+  },
+  photoLabel: {
+    fontFamily: 'Poppins_500Medium',
+    fontSize: 11, color: COLORS.ink2,
+  },
+  photoSublabel: {
+    fontFamily: 'Poppins_400Regular',
+    fontSize: 10, color: COLORS.ink3, marginTop: 1,
+  },
+
+  // Modal
+  modalBg: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  modalClose: {
+    position: 'absolute', top: 52, right: 20, zIndex: 10,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(60,60,60,0.5)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  modalImg: { width, height: height * 0.8 },
 });

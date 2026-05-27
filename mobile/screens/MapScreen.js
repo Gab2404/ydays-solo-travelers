@@ -14,7 +14,7 @@ const PANEL_WIDTH = width * 0.75;
 const ZOOM_DELTA = 0.01;
 
 export default function MapScreen({ route, navigation }) {
-  const { id } = route.params;
+  const { pathId } = route.params;
   const [path, setPath] = useState(null);
   const [selectedQuestId, setSelectedQuestId] = useState(null);
   const [completedQuests, setCompletedQuests] = useState([]);
@@ -27,7 +27,7 @@ export default function MapScreen({ route, navigation }) {
 
   useEffect(() => {
     fetchPath();
-  }, [id]);
+  }, [pathId]);
 
   // Dès que le parcours est chargé, on calcule l'itinéraire réel
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function MapScreen({ route, navigation }) {
   const fetchPath = async () => {
     try {
       setIsLoading(true);
-      const data = await pathService.getPathById(id);
+      const data = await pathService.getPathById(pathId);
       setPath(data);
     } catch (err) {
       errorHandler.handle(err, 'Impossible de charger le parcours');
@@ -203,7 +203,7 @@ export default function MapScreen({ route, navigation }) {
         </Animated.View>
       )}
 
-      <BottomNav navigation={navigation} activeRoute="Map" currentPathId={id} />
+      <BottomNav navigation={navigation} activeRoute="Map" currentPathId={pathId} />
     </View>
   );
 }

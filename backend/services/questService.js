@@ -4,11 +4,6 @@ const Path = require('../models/Path');
 /**
  * Calcule la distance entre deux points GPS (en km)
  * Utilise la formule de Haversine
- * @param {Number} lat1 - Latitude point 1
- * @param {Number} lon1 - Longitude point 1
- * @param {Number} lat2 - Latitude point 2
- * @param {Number} lon2 - Longitude point 2
- * @returns {Number} Distance en kilomètres
  */
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371; // Rayon de la Terre en km
@@ -27,12 +22,8 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 
 /**
  * Vérifie si l'utilisateur est proche d'une quête
- * @param {Object} questLocation - Coordonnées de la quête {lat, lng}
- * @param {Object} userLocation - Coordonnées de l'utilisateur {lat, lng}
- * @param {Number} threshold - Distance maximale en km (défaut: 0.1 = 100m)
- * @returns {Boolean} True si l'utilisateur est proche
  */
-const isUserNearQuest = (questLocation, userLocation, threshold = 0.1) => {
+const isUserNearQuest = (questLocation, userLocation, threshold = 0.05) => { // Seuil à 50m
   const distance = calculateDistance(
     questLocation.lat,
     questLocation.lng,
@@ -44,44 +35,48 @@ const isUserNearQuest = (questLocation, userLocation, threshold = 0.1) => {
 };
 
 /**
- * Récupère la prochaine quête non complétée d'un parcours
- * @param {String} pathId - ID du parcours
- * @param {Array} completedQuests - Liste des IDs de quêtes complétées
- * @returns {Object|null} Prochaine quête ou null
+ * NOUVELLE FONCTION : Vérifier la proximité via l'ID
+ */
+const checkProximity = async (questId, userLat, userLon) => {
+  try {
+    const quest = await Quest.findById(questId);
+    if (!quest) throw new Error('Quête non trouvée');
+
+    const distance = calculateDistance(userLat, userLon, quest.location.lat, quest.location.lng);
+    const threshold = 0.05; // 50 mètres
+
+    return {
+      isNearby: distance <= threshold,
+      distanceMeters: Math.round(distance * 1000),
+      requiredDistance: threshold * 1000,
+    };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * TES FONCTIONS ORIGINALES CONSERVÉES
  */
 const getNextQuest = async (pathId, completedQuests = []) => {
   try {
     const quests = await Quest.find({ pathId }).sort({ order: 1 });
-    
     const nextQuest = quests.find(quest => 
       !completedQuests.some(cq => cq.toString() === quest._id.toString())
     );
-    
     return nextQuest || null;
   } catch (error) {
     throw new Error('Erreur lors de la récupération de la prochaine quête');
   }
 };
 
-/**
- * Réorganise l'ordre des quêtes d'un parcours
- * @param {String} pathId - ID du parcours
- * @param {Array} questIds - Liste ordonnée des IDs de quêtes
- * @returns {Boolean} True si réussi
- */
 const reorderQuests = async (pathId, questIds) => {
   try {
-    // Vérifier que le parcours existe
     const path = await Path.findById(pathId);
-    if (!path) {
-      throw new Error('Parcours introuvable');
-    }
-
-    // Mettre à jour l'ordre de chaque quête
+    if (!path) throw new Error('Parcours introuvable');
     const updatePromises = questIds.map((questId, index) => 
       Quest.findByIdAndUpdate(questId, { order: index + 1 })
     );
-
     await Promise.all(updatePromises);
     return true;
   } catch (error) {
@@ -89,12 +84,6 @@ const reorderQuests = async (pathId, questIds) => {
   }
 };
 
-/**
- * Vérifie si une quête appartient à un parcours
- * @param {String} questId - ID de la quête
- * @param {String} pathId - ID du parcours
- * @returns {Boolean} True si la quête appartient au parcours
- */
 const questBelongsToPath = async (questId, pathId) => {
   try {
     const quest = await Quest.findById(questId);
@@ -107,6 +96,7 @@ const questBelongsToPath = async (questId, pathId) => {
 module.exports = {
   calculateDistance,
   isUserNearQuest,
+  checkProximity,
   getNextQuest,
   reorderQuests,
   questBelongsToPath

@@ -5,6 +5,7 @@
     npm init -y
     npm install express mongoose cors dotenv
     npm install --save-dev nodemon
+    npm install multer
 
     cd ..
     cd .\frontend\
@@ -39,6 +40,8 @@
     npx expo install expo-media-library
     npx expo install expo-image-picker
     npm install react-native-maps-directions
+    npx expo install expo-linear-gradient
+    npx expo install @expo-google-fonts/aoboshi-one @expo-google-fonts/poppins expo-font
 
 
     cd b

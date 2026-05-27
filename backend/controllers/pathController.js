@@ -1,5 +1,6 @@
 const Path = require('../models/Path');
 const Quest = require('../models/Quest');
+const mongoose = require('mongoose');
 const { validatePathData } = require('../utils/validation');
 
 // @desc    Récupérer tous les parcours (avec filtre optionnel par ville)
@@ -27,7 +28,14 @@ const getAllPaths = async (req, res) => {
 // @access  Public
 const getPathById = async (req, res) => {
   try {
-    const path = await Path.findById(req.params.id).populate('quests');
+    const { id } = req.params;
+
+    // AJOUT DU BLOC DE SÉCURITÉ CI-DESSOUS
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Identifiant de parcours invalide' });
+    }
+
+    const path = await Path.findById(id).populate('quests');
     
     if (!path) {
       return res.status(404).json({ message: 'Parcours introuvable' });
@@ -63,24 +71,33 @@ const getPathsByCity = async (req, res) => {
 // @access  Private (Admin)
 const createPath = async (req, res) => {
   try {
+    // Si tu utilises Multer, les champs textes sont dans req.body
+    // et le fichier est dans req.file
     const { title, city, difficulty, description } = req.body;
 
-    // Validation
-    const validation = validatePathData(req.body);
-    if (!validation.isValid) {
-      return res.status(400).json({ message: validation.errors.join(', ') });
+    // Validation basique
+    if (!title || !city) {
+      return res.status(400).json({ message: 'Titre et ville requis' });
     }
 
-    const newPath = new Path({
+    // Gestion de l'image
+    let imageUrl = '';
+    if (req.file) {
+      // On stocke le chemin du fichier (ex: uploads/image-123.jpg)
+      // On remplace les backslashes par des slashes pour éviter les soucis d'URL
+      imageUrl = req.file.path.replace(/\\/g, "/"); 
+    }
+
+    const path = await Path.create({
       title,
       city,
-      difficulty: difficulty || 'Mixte',
+      difficulty,
       description,
+      imageUrl, // <-- On sauvegarde le chemin
       createdBy: req.user._id
     });
 
-    const savedPath = await newPath.save();
-    res.status(201).json(savedPath);
+    res.status(201).json(path);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur lors de la création du parcours' });
